@@ -3,10 +3,47 @@
 import React from "react";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import PageTransition from "../components/PageTransition";
+import { api } from "../../lib/api";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      let response;
+      
+      if (isLogin) {
+        response = await api.auth.login(email, password);
+      } else {
+        if (!name) {
+          throw new Error("Name is required");
+        }
+        response = await api.auth.register(name, email, password);
+      }
+
+      // Save token to localStorage
+      localStorage.setItem("token", response.token);
+      
+      // Redirect to homepage
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <PageTransition>
@@ -39,10 +76,15 @@ export default function LoginPage() {
               className={`w-1/2 py-2 text-center transition-colors ${!isLogin ? 'bg-black text-white' : 'bg-white text-black border-b-2 border-black'}`}
             >
               Register
-            </button>
-          </div>
+            </button>          </div>
           
-          <form className="space-y-4">
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          <form className="space-y-4" onSubmit={handleSubmit}>
             {/* Name field - only shown for registration */}
             {!isLogin && (
               <div>
@@ -54,6 +96,8 @@ export default function LoginPage() {
                   id="name"
                   className="text-black w-full p-4 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
                   placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
                 />
               </div>
@@ -68,6 +112,8 @@ export default function LoginPage() {
                 id="email"
                 className="text-black w-full p-4 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
                 placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -80,6 +126,8 @@ export default function LoginPage() {
                 id="password"
                 className="text-black w-full p-4 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -87,8 +135,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className="w-full bg-black text-white py-4 rounded-lg shadow-md hover:shadow-lg transition-shadow font-medium"
+                disabled={isLoading}
               >
-                {isLogin ? "Log In" : "Sign Up"}
+                {isLoading ? "Processing..." : (isLogin ? "Log In" : "Sign Up")}
               </button>
             </div>
           </form>

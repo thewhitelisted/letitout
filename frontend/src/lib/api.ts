@@ -1,0 +1,192 @@
+/**
+ * API client for interacting with the backend
+ */
+
+// The base URL for API requests
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Types
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface Thought {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Todo {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  completed: boolean;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentItem {
+  type: 'thought' | 'todo';
+  data: Thought | Todo;
+}
+
+// Helper for making authenticated requests
+const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  // Get token from local storage
+  const token = localStorage.getItem('token');
+  
+  // Set up headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  // Add authorization header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // Make the request
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers,
+  });
+  // Handle 401 Unauthorized (token expired or invalid)
+  if (response.status === 401) {
+    console.log('Token expired or invalid, redirecting to login');
+    // Clear token
+    localStorage.removeItem('token');
+    
+    // Only redirect if we're in a browser context
+    if (typeof window !== 'undefined') {
+      // Delay the redirect slightly to allow any pending operations to complete
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    }
+    throw new Error('Unauthorized - Please log in again');
+  }
+  
+  // Parse the response
+  const data = await response.json();
+  
+  // Handle API errors
+  if (!response.ok) {
+    throw new Error(data.error || 'Something went wrong');
+  }
+  
+  return data;
+};
+
+// Auth API
+export const api = {
+  // Auth endpoints
+  auth: {
+    login: async (email: string, password: string): Promise<AuthResponse> => {
+      return fetchWithAuth('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+    },
+    
+    register: async (name: string, email: string, password: string): Promise<AuthResponse> => {
+      return fetchWithAuth('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      });
+    },
+    
+    getUser: async (): Promise<User> => {
+      return fetchWithAuth('/auth/me');
+    },
+  },
+  
+  // Content endpoints (AI-classified thoughts/todos)
+  content: {
+    create: async (text: string): Promise<ContentItem> => {
+      return fetchWithAuth('/content', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      });
+    },
+    
+    getAll: async (): Promise<ContentItem[]> => {
+      return fetchWithAuth('/content');
+    },
+  },
+  
+  // Thoughts endpoints
+  thoughts: {
+    getAll: async (): Promise<Thought[]> => {
+      return fetchWithAuth('/thoughts');
+    },
+    
+    getById: async (id: string): Promise<Thought> => {
+      return fetchWithAuth(`/thoughts/${id}`);
+    },
+    
+    create: async (content: string): Promise<Thought> => {
+      return fetchWithAuth('/thoughts', {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      });
+    },
+    
+    update: async (id: string, content: string): Promise<Thought> => {
+      return fetchWithAuth(`/thoughts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      });
+    },
+    
+    delete: async (id: string): Promise<void> => {
+      return fetchWithAuth(`/thoughts/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+  
+  // Todos endpoints
+  todos: {
+    getAll: async (completed?: boolean): Promise<Todo[]> => {
+      const query = completed !== undefined ? `?completed=${completed}` : '';
+      return fetchWithAuth(`/todos${query}`);
+    },
+    
+    getById: async (id: string): Promise<Todo> => {
+      return fetchWithAuth(`/todos/${id}`);
+    },
+    
+    create: async (title: string, description?: string, due_date?: string): Promise<Todo> => {
+      return fetchWithAuth('/todos', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, due_date }),
+      });
+    },
+    
+    update: async (id: string, data: Partial<Todo>): Promise<Todo> => {
+      return fetchWithAuth(`/todos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    delete: async (id: string): Promise<void> => {
+      return fetchWithAuth(`/todos/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+};

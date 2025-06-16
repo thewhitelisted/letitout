@@ -11,7 +11,7 @@
 !.yarn/versions
 
 # testing
-/coverage
+/frontend/coverage
 
 # next.js
 /frontend/.next/
@@ -38,4 +38,23 @@
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+/frontend/next-env.d.ts
+
+# Rust backend (if used)
+/backend/target
+
+# Python backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+/backend/venv/
+/backend/env/
+/backend/.env
+/backend/*.db
+/backend/*.sqlite3
+/backend/.venv
+/backend/.pytest_cache/
+/backend/.coverage
+/backend/htmlcov/
