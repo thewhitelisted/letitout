@@ -26,7 +26,7 @@ def create_app():
     jwt = JWTManager(app)
     
     # Configure CORS
-    CORS(app, resources={r"/api/*": {"origins": os.getenv('FRONTEND_URL', 'http://localhost:3000')}})
+    CORS(app, resources={r"/api/*": {"origins": os.getenv('FRONTEND_URL', 'http://localhost:3000')}}, supports_credentials=True)
       # Import blueprints here to avoid circular imports
     from app.api.thoughts import thoughts_bp
     from app.api.todos import todos_bp
