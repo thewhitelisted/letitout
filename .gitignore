@@ -60,3 +60,4 @@ __pycache__/
 /backend/htmlcov/
 
 /backend/instance
+/instance
