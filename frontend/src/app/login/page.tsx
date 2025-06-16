@@ -36,11 +36,11 @@ export default function LoginPage() {
 
       // Save token to localStorage
       localStorage.setItem("token", response.token);
-      
-      // Redirect to homepage
+        // Redirect to homepage
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

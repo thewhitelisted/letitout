@@ -5,7 +5,7 @@ import Link from "next/link";
 import PageTransition from "../components/PageTransition";
 import Notification from "../components/Notification";
 import { api, ContentItem, Thought, Todo } from "../../lib/api";
-import { formatDate, formatDateOnly, formatDueDateTime } from "../../lib/utils";
+import { formatDate, formatDueDateTime } from "../../lib/utils";
 
 export default function ThoughtsPage() {  
   const [isAuthenticated, setIsAuthenticated] = useState(false);

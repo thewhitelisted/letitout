@@ -4,12 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import PageTransition from "../components/PageTransition";
 import Notification from "../components/Notification";
-import { api, ContentItem, Thought, Todo } from "../../lib/api";
-import { formatDate, formatDateOnly, formatDueDateTime } from "../../lib/utils";
+import { api, Thought, Todo } from "../../lib/api";
+import { formatDate, formatDueDateTime } from "../../lib/utils";
 
 export default function MyDayPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [content, setContent] = useState<ContentItem[]>([]);
   const [userName, setUserName] = useState("");
   const [notification, setNotification] = useState({
     isVisible: false,
@@ -26,14 +25,12 @@ export default function MyDayPage() {
     const today = new Date();
     return today.toISOString().split('T')[0]; // Gets YYYY-MM-DD part only
   };
-
   // Fetch all content
   const fetchContent = useCallback(async () => {
     try {
       console.log("Fetching content with auth token:", localStorage.getItem('token'));
       const data = await api.content.getAll();
       console.log("Content fetched successfully:", data);
-      setContent(data);
       
       // Get today's date for filtering
       const todayStr = getTodayDateString();
@@ -157,8 +154,7 @@ export default function MyDayPage() {
       month: 'long',
       day: 'numeric'
     });
-  };
-  // Render a todo item
+  };  // Render a todo item
   const renderTodoItem = (todo: Todo) => {
     // Function to toggle todo completion
     const toggleTodoCompletion = async () => {
@@ -174,15 +170,6 @@ export default function MyDayPage() {
           )
         );
         
-        // Also update the main content list
-        setContent(prevContent => 
-          prevContent.map(contentItem => 
-            contentItem.type === 'todo' && (contentItem.data as Todo).id === todo.id
-              ? { ...contentItem, data: updatedTodo }
-              : contentItem
-          )
-        );
-        
         // Show notification
         showNotification(`Todo marked as ${updatedTodo.completed ? 'completed' : 'incomplete'}`);
       } catch (error) {
@@ -190,8 +177,7 @@ export default function MyDayPage() {
         showNotification('Failed to update todo status', 'error');
       }
     };
-    
-    // Function to delete todo
+      // Function to delete todo
     const handleDeleteTodo = async () => {
       if (confirm('Are you sure you want to delete this todo?')) {
         try {
@@ -200,13 +186,6 @@ export default function MyDayPage() {
           // Update local state
           setTodaysTodos(prevTodos => 
             prevTodos.filter(t => t.id !== todo.id)
-          );
-          
-          // Also update the main content list
-          setContent(prevContent => 
-            prevContent.filter(contentItem => 
-              !(contentItem.type === 'todo' && (contentItem.data as Todo).id === todo.id)
-            )
           );
           
           // Show notification
@@ -257,8 +236,7 @@ export default function MyDayPage() {
     );
   };
     // Render a thought item
-  const renderThoughtItem = (thought: Thought) => {
-    // Function to delete thought
+  const renderThoughtItem = (thought: Thought) => {    // Function to delete thought
     const handleDeleteThought = async () => {
       if (confirm('Are you sure you want to delete this thought?')) {
         try {
@@ -267,13 +245,6 @@ export default function MyDayPage() {
           // Update local state
           setTodaysThoughts(prevThoughts => 
             prevThoughts.filter(t => t.id !== thought.id)
-          );
-          
-          // Also update the main content list
-          setContent(prevContent => 
-            prevContent.filter(contentItem => 
-              !(contentItem.type === 'thought' && (contentItem.data as Thought).id === thought.id)
-            )
           );
           
           // Show notification
@@ -358,7 +329,7 @@ export default function MyDayPage() {
               
               {/* Today's thoughts section */}
               <section>
-                <h2 className="text-2xl font-bold text-black mb-4">today's thoughts:</h2>
+                <h2 className="text-2xl font-bold text-black mb-4">today&apos;s thoughts:</h2>
                 {todaysThoughts.length > 0 ? (
                   <div>
                     {todaysThoughts.map(thought => renderThoughtItem(thought))}

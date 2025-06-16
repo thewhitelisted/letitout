@@ -99,13 +99,13 @@ export default function ProfilePage() {
       await api.auth.changePassword(currentPassword, newPassword);
       showNotification('Password updated successfully', 'success');
       setShowPasswordForm(false);
-      
-      // Reset form
+        // Reset form
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
-      setFormError(error.message || 'Failed to update password');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update password';
+      setFormError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
