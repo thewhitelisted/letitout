@@ -23,14 +23,15 @@ export default function LoginPage() {
 
     try {
       let response;
-      
-      if (isLogin) {
+        if (isLogin) {
         response = await api.auth.login(email, password);
       } else {
         if (!name) {
           throw new Error("Name is required");
         }
-        response = await api.auth.register(name, email, password);
+        // Convert name to lowercase for registration
+        const lowercaseName = name.toLowerCase();
+        response = await api.auth.register(lowercaseName, email, password);
       }
 
       // Save token to localStorage
@@ -46,11 +47,10 @@ export default function LoginPage() {
   };
 
   return (
-    <PageTransition>
-      <div className="flex flex-col min-h-screen p-8 bg-white">
+    <PageTransition>      <div className="flex flex-col min-h-screen p-8 bg-white">
       {/* Header with navigation */}
       <header className="flex justify-between items-center w-full">
-        <Link href="/" className="font-large text-black font-bold">got thoughts?</Link>
+        <Link href="/" className="font-large text-black font-bold">your personal journal</Link>
         <nav className="flex gap-2">
           <Link href="/" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
             back home
@@ -84,8 +84,7 @@ export default function LoginPage() {
             </div>
           )}
           
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {/* Name field - only shown for registration */}
+          <form className="space-y-4" onSubmit={handleSubmit}>            {/* Name field - only shown for registration */}
             {!isLogin && (
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-black mb-1">

@@ -13,14 +13,20 @@ class Todo(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     def to_dict(self):
+        due_date_str = None
+        if self.due_date:
+            due_date_str = self.due_date.isoformat() + 'Z'
+            print(f"Todo due_date: Python obj={self.due_date}, ISO={due_date_str}")
+            
         return {
             'id': self.id,
             'user_id': self.user_id,
             'title': self.title,
             'description': self.description,
             'completed': self.completed,
-            'due_date': self.due_date.isoformat() + 'Z' if self.due_date else None,
+            'due_date': due_date_str,
             'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'updated_at': self.updated_at.isoformat() + 'Z' if self.updated_at else None
         }

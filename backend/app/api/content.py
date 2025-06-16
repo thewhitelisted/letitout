@@ -39,12 +39,14 @@ def create_content():
         return jsonify({
             'type': 'thought',
             'data': new_thought.to_dict()
-        }), 201
+        }), 201    
     elif content_type == 'todo':        
         # Parse due date if provided
         due_date = None
         if formatted_data['due_date']:
+            print(f"Due date from AI classifier: {formatted_data['due_date']}")
             due_date = validate_and_normalize_date(formatted_data['due_date'])
+            print(f"Normalized due date: {due_date}")
         
         # Create a todo
         new_todo = Todo(
@@ -160,28 +162,41 @@ def validate_and_normalize_date(date_str):
     Validate and normalize a date string to a datetime object.
     
     Args:
-        date_str (str): ISO format date string (YYYY-MM-DD)
+        date_str (str): ISO format date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ss)
         
     Returns:
         datetime or None: Normalized datetime object or None if invalid
     """
+    print(f"\n=== Date Validation Start ===")
+    print(f"Input date string: '{date_str}', Type: {type(date_str)}")
+    
     if not date_str:
+        print("Empty date string, returning None")
         return None
-        
+    
+    date_obj = None    
     try:
-        # Try to parse the date
-        date_obj = datetime.fromisoformat(date_str)
+        # Check if we have a date with time (contains 'T' separator)
+        if 'T' in date_str:
+            print(f"Found 'T' separator in date string, parsing with time component")
+            # Parse the ISO format with time
+            date_obj = datetime.fromisoformat(date_str)
+            print(f"Parsed with time: {date_obj}, hour={date_obj.hour}, minute={date_obj.minute}")
+        else:
+            print(f"No 'T' separator found, parsing as date only and adding default time")
+            # Parse just the date and set default time to noon (12:00)
+            date_obj = datetime.fromisoformat(date_str)
+            print(f"Initial parse: {date_obj}")
+            date_obj = date_obj.replace(hour=12, minute=0, second=0)
+            print(f"After adding default time: {date_obj}")
         
-        # Additional validation
-        today = datetime.now().date()
-        
-        # Log information about the date
-        print(f"Processing date: {date_str}, parsed as: {date_obj}")
-        
-        # Return the validated date
+        print(f"Final datetime object: {date_obj}, UTC timestamp: {date_obj.timestamp()}")
+        print(f"=== Date Validation End ===\n")
+          # Return the validated date
+        print(f"Normalized date being returned: {date_obj} (UTC timestamp: {date_obj.timestamp()})")
         return date_obj
     except ValueError as e:
-        print(f"Error parsing date '{date_str}': {e}")
+        print(f"Standard ISO format parsing error: {e}")
         
         # Try some additional date formats
         try:
@@ -190,10 +205,14 @@ def validate_and_normalize_date(date_str):
                 parts = date_str.split('/')
                 if len(parts) == 3:
                     month, day, year = map(int, parts)
-                    date_obj = datetime(year, month, day)
+                    # Set default time to noon
+                    date_obj = datetime(year, month, day, 12, 0, 0)
                     print(f"Successfully parsed alternate format: {date_obj}")
+                    print(f"=== Date Validation End ===\n")
                     return date_obj
         except Exception as e2:
             print(f"Failed to parse alternate format: {e2}")
-            
+        
+        print(f"All parsing attempts failed for '{date_str}'")
+        print(f"=== Date Validation End ===\n")
         return None

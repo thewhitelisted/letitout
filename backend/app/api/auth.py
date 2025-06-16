@@ -75,3 +75,54 @@ def get_current_user():
         return jsonify({'error': 'User not found'}), 404
         
     return jsonify(user.to_dict())
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    data = request.json
+    
+    # Validate required fields
+    if not all(k in data for k in ['current_password', 'new_password']):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Verify current password
+    if not bcrypt.checkpw(data['current_password'].encode('utf-8'), user.password_hash.encode('utf-8')):
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    
+    # Hash new password
+    new_password_hash = bcrypt.hashpw(data['new_password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    # Update password
+    user.password_hash = new_password_hash
+    db.session.commit()
+    
+    return jsonify({'message': 'Password updated successfully'})
+
+@auth_bp.route('/stats', methods=['GET'])
+@jwt_required()
+def get_user_stats():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Count thoughts
+    thought_count = len(user.thoughts)
+    
+    # Count todos and completed todos
+    todo_count = len(user.todos)
+    completed_todo_count = sum(1 for todo in user.todos if todo.completed)
+    
+    return jsonify({
+        'thoughts_count': thought_count,
+        'todos_count': todo_count,
+        'completed_todos_count': completed_todo_count,
+        'completion_rate': round(completed_todo_count / todo_count * 100, 1) if todo_count > 0 else 0
+    })

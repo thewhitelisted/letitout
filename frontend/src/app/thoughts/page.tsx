@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, FormEvent, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import PageTransition from "./components/PageTransition";
-import Notification from "./components/Notification";
-import { api, ContentItem, Thought, Todo } from "../lib/api";
-import { formatDate, formatDateOnly, formatDueDateTime } from "../lib/utils";
+import PageTransition from "../components/PageTransition";
+import Notification from "../components/Notification";
+import { api, ContentItem, Thought, Todo } from "../../lib/api";
+import { formatDate, formatDateOnly, formatDueDateTime } from "../../lib/utils";
 
-export default function Home() {
-  const [text, setText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function ThoughtsPage() {  
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [userName, setUserName] = useState("");
@@ -18,7 +16,7 @@ export default function Home() {
     message: "",
     type: "success" as "success" | "error" | "info"
   });
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [filter, setFilter] = useState<'all' | 'thought' | 'todo'>('all');
 
   // Fetch all content
   const fetchContent = useCallback(async () => {
@@ -29,9 +27,9 @@ export default function Home() {
       setContent(data);
     } catch (error) {
       console.error('Error fetching content:', error);
+      showNotification('Failed to load your content. Please try again.', 'error');
     }
   }, []);
-
   // Check if user is authenticated and fetch content
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -39,15 +37,14 @@ export default function Home() {
     
     setIsAuthenticated(isTokenPresent);
     
-    // If authenticated, fetch content and user data
+    // If authenticated, fetch content
     if (isTokenPresent) {
       fetchContent();
-      
-      // Fetch user data to get the name
+        // Fetch user data to get the name
       const fetchUserData = async () => {
         try {
           const userData = await api.auth.getUser();
-          // Get first name by splitting at first space
+          // split name if needed
           const firstName = userData.name.split(' ')[0];
           setUserName(firstName);
         } catch (error) {
@@ -56,6 +53,9 @@ export default function Home() {
       };
       
       fetchUserData();
+    } else {
+      // Redirect to login if not authenticated
+      window.location.href = "/login";
     }
     
     // Add event listener for manual refresh with Ctrl+R key
@@ -74,43 +74,6 @@ export default function Home() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [fetchContent]);
-  
-  // Handle form submission
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!text.trim() || isSubmitting) return;
-    
-    setIsSubmitting(true);
-    
-    try {
-      if (isAuthenticated) {
-        // Send to the backend for AI processing
-        const newContent = await api.content.create(text);
-        
-        // Show success notification
-        const contentType = newContent.type === 'thought' ? 'Thought' : 'Todo';
-        showNotification(`${contentType} created successfully!`);
-        
-        // Refresh all content to ensure it's up to date with server
-        fetchContent();
-      } else {
-        // If not authenticated, just show a demo message
-        alert("Sign in to save your thoughts and todos!");
-      }
-      
-      // Reset the form
-      setText("");
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    } catch (error) {
-      console.error('Error submitting content:', error);
-      showNotification('Failed to save your content. Please try again.', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
   
   // Helper function to show notifications
   const showNotification = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -131,7 +94,12 @@ export default function Home() {
     }));
   };
   
-  // Render todo or thought item
+  // Function to filter content
+  const getFilteredContent = () => {
+    if (filter === 'all') return content;
+    return content.filter(item => item.type === filter);
+  };
+    // Render todo or thought item
   const renderContentItem = (item: ContentItem) => {
     if (item.type === 'thought') {
       const thought = item.data as Thought;
@@ -176,8 +144,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-      );
-    } else if (item.type === 'todo') {
+      );    } else if (item.type === 'todo') {
       const todo = item.data as Todo;
       
       // Function to toggle todo completion
@@ -225,8 +192,7 @@ export default function Home() {
           }
         }
       };
-      
-      return (
+        return (
         <div key={todo.id} className="bg-gray-50 p-4 rounded-lg mb-4 shadow-sm border-l-4 border-black">
           <div className="flex items-center">
             <input
@@ -276,20 +242,18 @@ export default function Home() {
   return (
     <>
       <PageTransition>
-        <div className="flex flex-col min-h-screen p-8 bg-white">
-          {/* Header with navigation */}
-          <header className="flex justify-between items-center w-full">
+        <div className="flex flex-col min-h-screen p-8 bg-white">          {/* Header with navigation */}          
+          <header className="flex justify-between items-center w-full">            
             <div className="font-large text-black font-bold">
               {isAuthenticated && userName ? `${userName}'s journal` : "your personal journal"}
             </div>
             <nav className="flex gap-2">
-              <Link href="/" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow border-2 border-white">
+              <Link href="/" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 home
               </Link>
               <Link href="/day" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 my day
-              </Link>
-              <Link href="/thoughts" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
+              </Link>              <Link href="/thoughts" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow border-2 border-white">
                 my thoughts
               </Link>
               <Link href={isAuthenticated ? "/profile" : "/login"} className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
@@ -301,37 +265,56 @@ export default function Home() {
           {/* Main content */}
           <main className="flex flex-col items-center justify-center flex-grow py-16 w-full max-w-3xl mx-auto">
             <div className="w-full">
-              <h1 className="text-4xl font-bold text-black mb-8">just let it out:</h1>
-              <form onSubmit={handleSubmit}>
-                <textarea
-                  ref={textareaRef}
-                  className="text-black w-full p-4 border rounded-lg shadow-sm resize-none focus:outline-none focus:ring-2 focus:ring-black"
-                  placeholder="what's on your mind?"
-                  rows={6}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="bg-black text-white px-6 py-3 rounded-md mt-4 shadow-md hover:shadow-lg transition-shadow font-medium"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'saving...' : 'save'}
-                </button>
-              </form>
+              <div className="flex justify-between items-center mb-8">
+                <h1 className="text-4xl font-bold text-black">my thoughts & todos:</h1>
+                {/* Filtering controls */}
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setFilter('all')}
+                    className={`px-4 py-2 rounded-md shadow-md transition-shadow ${filter === 'all' ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}
+                  >
+                    all
+                  </button>
+                  <button 
+                    onClick={() => setFilter('thought')}
+                    className={`px-4 py-2 rounded-md shadow-md transition-shadow ${filter === 'thought' ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}
+                  >
+                    thoughts
+                  </button>
+                  <button 
+                    onClick={() => setFilter('todo')}
+                    className={`px-4 py-2 rounded-md shadow-md transition-shadow ${filter === 'todo' ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}
+                  >
+                    todos
+                  </button>
+                </div>
+              </div>
               
-              {/* Display content if authenticated */}
-              {isAuthenticated && content.length > 0 && (
-                <div className="mt-16">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-black">recent activity:</h2>
-                    <Link href="/thoughts" className="text-sm text-black underline hover:text-gray-600">
-                      View all
-                    </Link>
-                  </div>
-                  <div>
-                    {content.slice(0, 5).map(item => renderContentItem(item))}
-                  </div>
+              {/* Display content */}
+              {isAuthenticated && (
+                <div>
+                  {getFilteredContent().length > 0 ? (
+                    <div>
+                      {getFilteredContent().map(item => renderContentItem(item))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500 text-lg">
+                        {filter === 'all' 
+                          ? "you don't have any thoughts or todos yet." 
+                          : filter === 'thought' 
+                            ? "you don't have any thoughts yet."
+                            : "you don't have any todos yet."
+                        }
+                      </p>
+                      <Link 
+                        href="/" 
+                        className="inline-block mt-4 bg-black text-white px-6 py-3 rounded-md shadow-md hover:shadow-lg transition-shadow"
+                      >
+                        create some now
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -339,7 +322,7 @@ export default function Home() {
         </div>
       </PageTransition>
       
-      {/* Notification component - now outside the main container */}
+      {/* Notification component */}
       <Notification 
         message={notification.message}
         type={notification.type}
