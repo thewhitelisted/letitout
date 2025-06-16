@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 
 from app.models.db import db
+from app.utils.cors_handler import add_cors_headers, handle_options_request
 
 def create_app():
     # Load environment variables
@@ -24,10 +25,14 @@ def create_app():
     db.init_app(app)
     migrate = Migrate(app, db)
     jwt = JWTManager(app)
+      # Configure CORS - more permissive for debugging
+    CORS(app, origins=['*'], supports_credentials=True, allow_headers=[
+        'Content-Type', 'Authorization', 'X-Requested-With',
+        'Accept', 'Origin', 'Access-Control-Request-Method',
+        'Access-Control-Request-Headers'
+    ], methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
-    # Configure CORS
-    CORS(app, resources={r"/api/*": {"origins": os.getenv('FRONTEND_URL', 'http://localhost:3000')}}, supports_credentials=True)
-      # Import blueprints here to avoid circular imports
+    # Import blueprints here to avoid circular imports
     from app.api.thoughts import thoughts_bp
     from app.api.todos import todos_bp
     from app.api.auth import auth_bp
@@ -40,10 +45,25 @@ def create_app():
     app.register_blueprint(thoughts_bp, url_prefix='/api/thoughts')
     app.register_blueprint(todos_bp, url_prefix='/api/todos')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(content_bp, url_prefix='/api/content')
-    # Health check endpoint
+    app.register_blueprint(content_bp, url_prefix='/api/content')    # Health check endpoint
     @app.route('/api/health')
     def health_check():
         return {'status': 'ok'}
+    
+    # Root endpoint for Render health checks
+    @app.route('/')
+    def root():
+        return {'status': 'ok', 'message': 'Let It Out API is running'}
+    
+    # Handle OPTIONS requests explicitly
+    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def handle_all_options(path):
+        return handle_options_request()
+    
+    # Add CORS headers to all responses
+    @app.after_request
+    def after_request(response):
+        return add_cors_headers(response)
         
     return app
