@@ -19,11 +19,15 @@ export default function MyDayPage() {
   // Track today's todos and thoughts separately
   const [todaysTodos, setTodaysTodos] = useState<Todo[]>([]);
   const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);
-
   // Get today's date in ISO format (YYYY-MM-DD)
   const getTodayDateString = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0]; // Gets YYYY-MM-DD part only
+    // Using the user's local date instead of UTC date to handle timezone differences
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   };
   // Fetch all content
   const fetchContent = useCallback(async () => {
@@ -45,15 +49,37 @@ export default function MyDayPage() {
       data.forEach(item => {
         if (item.type === 'todo') {
           const todo = item.data as Todo;
-          // Check if due date is today
-          if (todo.due_date && todo.due_date.startsWith(todayStr)) {
-            todosForToday.push(todo);
+          // Check if due date is today - improved date comparison
+          if (todo.due_date) {
+            // Convert UTC timestamp to local date for comparison
+            const todoDate = new Date(todo.due_date);
+            const todoLocalDate = new Date(
+              todoDate.getFullYear(),
+              todoDate.getMonth(),
+              todoDate.getDate()
+            ).toISOString().split('T')[0];
+            
+            console.log(`Comparing todo date: ${todoLocalDate} with today: ${todayStr}`);
+            if (todoLocalDate === todayStr) {
+              todosForToday.push(todo);
+            }
           }
         } else if (item.type === 'thought') {
           const thought = item.data as Thought;
-          // Check if created today
-          if (thought.created_at && thought.created_at.startsWith(todayStr)) {
-            thoughtsForToday.push(thought);
+          // Check if created today - more flexible date comparison accounting for timezone differences
+          if (thought.created_at) {
+            // Convert UTC timestamp to local date for comparison
+            const thoughtDate = new Date(thought.created_at);
+            const thoughtLocalDate = new Date(
+              thoughtDate.getFullYear(),
+              thoughtDate.getMonth(),
+              thoughtDate.getDate()
+            ).toISOString().split('T')[0];
+            
+            console.log(`Comparing thought date: ${thoughtLocalDate} with today: ${todayStr}`);
+            if (thoughtLocalDate === todayStr) {
+              thoughtsForToday.push(thought);
+            }
           }
         }
       });
