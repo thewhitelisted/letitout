@@ -160,12 +160,13 @@ def test_date_parsing():
 def validate_and_normalize_date(date_str):
     """
     Validate and normalize a date string to a datetime object.
+    Always stores dates in UTC timezone in the database.
     
     Args:
         date_str (str): ISO format date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ss)
         
     Returns:
-        datetime or None: Normalized datetime object or None if invalid
+        datetime or None: Normalized datetime object in UTC or None if invalid
     """
     print(f"\n=== Date Validation Start ===")
     print(f"Input date string: '{date_str}', Type: {type(date_str)}")
@@ -173,9 +174,15 @@ def validate_and_normalize_date(date_str):
     if not date_str:
         print("Empty date string, returning None")
         return None
-    
+        
     date_obj = None    
     try:
+        # Handle Z suffix (UTC timezone marker) by converting to +00:00 format
+        # which is compatible with fromisoformat
+        if isinstance(date_str, str) and date_str.endswith('Z'):
+            print(f"Found 'Z' suffix (UTC timezone), converting to +00:00 format")
+            date_str = date_str.replace('Z', '+00:00')
+        
         # Check if we have a date with time (contains 'T' separator)
         if 'T' in date_str:
             print(f"Found 'T' separator in date string, parsing with time component")
@@ -189,10 +196,10 @@ def validate_and_normalize_date(date_str):
             print(f"Initial parse: {date_obj}")
             date_obj = date_obj.replace(hour=12, minute=0, second=0)
             print(f"After adding default time: {date_obj}")
-        
-        print(f"Final datetime object: {date_obj}, UTC timestamp: {date_obj.timestamp()}")
+            print(f"Final datetime object: {date_obj}, UTC timestamp: {date_obj.timestamp()}")
         print(f"=== Date Validation End ===\n")
-          # Return the validated date
+        
+        # Return the validated date
         print(f"Normalized date being returned: {date_obj} (UTC timestamp: {date_obj.timestamp()})")
         return date_obj
     except ValueError as e:

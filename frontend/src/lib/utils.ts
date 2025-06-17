@@ -66,10 +66,11 @@ export function formatDateOnly(dateString: string | null): string {
 }
 
 /**
- * Formats a date string to show both date and time for due dates
+ * Formats a due date string for display.
+ * This function is more timezone-aware and preserves the original due time.
  * 
  * @param dateString ISO date string from the API
- * @returns Formatted date and time string in local timezone
+ * @returns Formatted due date/time string
  */
 export function formatDueDateTime(dateString: string | null): string {
   if (!dateString) return 'N/A';
@@ -79,14 +80,11 @@ export function formatDueDateTime(dateString: string | null): string {
     
     // Create date object from the string
     const date = new Date(dateString);
-      // Check if the date is valid
+    
+    // Check if the date is valid
     if (isNaN(date.getTime())) {
       return 'Invalid date';
     }
-    
-    // The issue: when you have a time like "2025-06-17T15:00:00Z" (3pm UTC),
-    // the browser will convert it to local time (e.g., 11am EDT if you're in UTC-4).
-    // However, you want to display the time as originally entered without timezone conversion.
     
     // For dates ending with Z (UTC dates from the backend):
     if (dateString.endsWith('Z')) {
@@ -108,7 +106,8 @@ export function formatDueDateTime(dateString: string | null): string {
       // Get the UTC hours and minutes (the actual values in the database)
       const utcHours = date.getUTCHours();
       const utcMinutes = date.getUTCMinutes();
-        // Format date part in local time (day/month/year)
+      
+      // Format date part in local time (day/month/year)
       const datePart = date.toLocaleDateString(undefined, {
         year: 'numeric',
         month: 'short', 
@@ -131,7 +130,8 @@ export function formatDueDateTime(dateString: string | null): string {
       console.log(`Formatted with preserved time: ${datePart} at ${timePart}`);
       return `${datePart} at ${timePart}`;
     }
-      // For dates without Z suffix, use standard formatting
+    
+    // For dates without Z suffix, use standard formatting
     const formatted = date.toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',

@@ -21,12 +21,21 @@ export default function MyDayPage() {
   const [todaysTodos, setTodaysTodos] = useState<Todo[]>([]);
   const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);  // Get today's date in ISO format (YYYY-MM-DD)
   const getTodayDateString = () => {
-    // Use our date utility function to get today's date in local timezone
-    const result = getLocalDateString();
-    console.log(`Today's date for comparison: ${result}`);
+    // Create a new Date object at the current time in the user's local timezone
+    const today = new Date();
+    console.log("Raw today's date object:", today);
+    console.log("Today's date as ISO string:", today.toISOString());
+    console.log("Today's local date string:", today.toString());
+    
+    // Using the user's local date instead of UTC date to handle timezone differences
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    const result = `${year}-${month}-${day}`;
+    console.log(`Formatted today's date for comparison: ${result}`);
     return result;
   };
-  
   // Fetch all content
   const fetchContent = useCallback(async () => {
     try {
@@ -46,33 +55,57 @@ export default function MyDayPage() {
       // Process each content item
       data.forEach(item => {
         if (item.type === 'todo') {
-          const todo = item.data as Todo;
-          // Check if due date is today - using our date utility functions
-          if (todo.due_date) {
+          const todo = item.data as Todo;          // Check if due date is today - improved date comparison          if (todo.due_date) {
             // Convert UTC timestamp to local date for comparison
-            const todoLocalDate = utcToLocalDateString(todo.due_date);
+            const todoDate = new Date(todo.due_date);
+            
+            // Method 1: Get local date components directly from the Date object
+            // This properly accounts for timezone offset
+            const todoYear = todoDate.getFullYear();
+            const todoMonth = String(todoDate.getMonth() + 1).padStart(2, '0');
+            const todoDay = String(todoDate.getDate()).padStart(2, '0');
+            const todoLocalDate = `${todoYear}-${todoMonth}-${todoDay}`;
+            
+            // Method 2: Using string manipulation on the original UTC string (less reliable)
+            const simpleDateMatch = todo.due_date.split('T')[0];
             
             console.log(`Todo due_date raw value: ${todo.due_date}`);
-            console.log(`Converted local date: ${todoLocalDate}`);
+            console.log(`Method 1 - Local date string: ${todoLocalDate}`);
+            console.log(`Method 2 - UTC string split: ${simpleDateMatch}`);
             console.log(`Comparing with today's date: ${todayStr}`);
             
+            // Try both methods to improve matching
             if (todoLocalDate === todayStr) {
-              console.log(`✅ Todo matched for today: ${todo.title}`);
+              console.log(`✅ Todo matched for today (local time): ${todo.title}`);
+              todosForToday.push(todo);
+            } else if (simpleDateMatch === todayStr) {
+              console.log(`✅ Todo matched for today (UTC split): ${todo.title}`);
               todosForToday.push(todo);
             }
           }
         } else if (item.type === 'thought') {
-          const thought = item.data as Thought;
-          // Check if created today using our date utility
+          const thought = item.data as Thought;          // Check if created today - more flexible date comparison accounting for timezone differences
           if (thought.created_at) {
             // Convert UTC timestamp to local date for comparison
-            const thoughtLocalDate = utcToLocalDateString(thought.created_at);
+            const thoughtDate = new Date(thought.created_at);
+            
+            // Get local date components directly from the Date object
+            // This properly accounts for timezone offset
+            const thoughtYear = thoughtDate.getFullYear();
+            const thoughtMonth = String(thoughtDate.getMonth() + 1).padStart(2, '0');
+            const thoughtDay = String(thoughtDate.getDate()).padStart(2, '0');
+            const thoughtLocalDate = `${thoughtYear}-${thoughtMonth}-${thoughtDay}`;
+            
+            // Alternative approach using direct string manipulation
+            const simpleDateMatch = thought.created_at.split('T')[0];
             
             console.log(`Thought created_at raw value: ${thought.created_at}`);
-            console.log(`Converted local date: ${thoughtLocalDate}`);
+            console.log(`Method 1 - Local date string: ${thoughtLocalDate}`);
+            console.log(`Method 2 - UTC string split: ${simpleDateMatch}`);
             console.log(`Comparing with today's date: ${todayStr}`);
             
-            if (thoughtLocalDate === todayStr) {
+            // Try both methods to improve matching
+            if (thoughtLocalDate === todayStr || simpleDateMatch === todayStr) {
               thoughtsForToday.push(thought);
             }
           }
