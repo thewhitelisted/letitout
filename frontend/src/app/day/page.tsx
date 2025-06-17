@@ -18,16 +18,22 @@ export default function MyDayPage() {
   
   // Track today's todos and thoughts separately
   const [todaysTodos, setTodaysTodos] = useState<Todo[]>([]);
-  const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);
-  // Get today's date in ISO format (YYYY-MM-DD)
+  const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);  // Get today's date in ISO format (YYYY-MM-DD)
   const getTodayDateString = () => {
+    // Create a new Date object at the current time in the user's local timezone
     const today = new Date();
+    console.log("Raw today's date object:", today);
+    console.log("Today's date as ISO string:", today.toISOString());
+    console.log("Today's local date string:", today.toString());
+    
     // Using the user's local date instead of UTC date to handle timezone differences
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
     const day = String(today.getDate()).padStart(2, '0');
     
-    return `${year}-${month}-${day}`;
+    const result = `${year}-${month}-${day}`;
+    console.log(`Formatted today's date for comparison: ${result}`);
+    return result;
   };
   // Fetch all content
   const fetchContent = useCallback(async () => {
@@ -48,19 +54,27 @@ export default function MyDayPage() {
       // Process each content item
       data.forEach(item => {
         if (item.type === 'todo') {
-          const todo = item.data as Todo;
-          // Check if due date is today - improved date comparison
+          const todo = item.data as Todo;          // Check if due date is today - improved date comparison
           if (todo.due_date) {
             // Convert UTC timestamp to local date for comparison
             const todoDate = new Date(todo.due_date);
+            
+            // Create a local date object using local components (year, month, day)
             const todoLocalDate = new Date(
               todoDate.getFullYear(),
               todoDate.getMonth(),
               todoDate.getDate()
             ).toISOString().split('T')[0];
             
+            // Alternative approach using direct string manipulation
+            const simpleDateMatch = todo.due_date.split('T')[0];
+            
             console.log(`Comparing todo date: ${todoLocalDate} with today: ${todayStr}`);
-            if (todoLocalDate === todayStr) {
+            console.log(`Alternative date comparison: ${simpleDateMatch} with today: ${todayStr}`);
+            
+            // Try both methods to improve matching
+            if (todoLocalDate === todayStr || simpleDateMatch === todayStr) {
+              console.log(`✅ Todo matched for today: ${todo.title}`);
               todosForToday.push(todo);
             }
           }

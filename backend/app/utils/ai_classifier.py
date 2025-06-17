@@ -16,8 +16,10 @@ load_dotenv()
 client=genai.Client(api_key=os.getenv("API_KEY"))
 
 def classify_input(text: str) -> Tuple[str, Dict[str, Union[str, bool, None]]]:
-    today = datetime.now().strftime('%Y-%m-%d')
-    time = datetime.now().strftime('%H:%M:%S')
+    # Use local timezone instead of UTC for more accurate date processing
+    now_local = datetime.now()
+    today = now_local.strftime('%Y-%m-%d')
+    time = now_local.strftime('%H:%M:%S')
     
     prompt = f"""
     Analyze the following text and determine if it is a thought or a todo.
@@ -43,16 +45,13 @@ def classify_input(text: str) -> Tuple[str, Dict[str, Union[str, bool, None]]]:
       - For date with time: Use format "YYYY-MM-DDThh:mm:ss" (example: "2025-06-17T15:30:00")
       - For date only: Use format "YYYY-MM-DD" (example: "2025-06-17")
     - If a specific time is mentioned (like "at 3pm", "by noon", etc.), include it in the due_date
-    - If only a date is mentioned with no time, just provide the date without time
-    - For relative dates:
-      - "tomorrow" means {(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')}
-      - "next week" means {(datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')}
-      - "in 3 days" means {(datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')}
+    - If only a date is mentioned with no time, just provide the date without time    - For relative dates:
+      - "tomorrow" means {(now_local + timedelta(days=1)).strftime('%Y-%m-%d')}
+      - "next week" means {(now_local + timedelta(days=7)).strftime('%Y-%m-%d')}
+      - "in 3 days" means {(now_local + timedelta(days=3)).strftime('%Y-%m-%d')}
     - If no date is mentioned, return null for due_date
-    - Never make up dates that aren't mentioned in the input
-
-    EXAMPLES:
-    - "Call John tomorrow at 3pm" → due_date: "{(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')}T15:00:00"
+    - Never make up dates that aren't mentioned in the input    EXAMPLES:
+    - "Call John tomorrow at 3pm" → due_date: "{(now_local + timedelta(days=1)).strftime('%Y-%m-%d')}T15:00:00"
     - "Buy groceries by Friday" → due_date: "2025-06-20" (if Friday is the 20th)
     - "Remember to breathe" → due_date: null
 

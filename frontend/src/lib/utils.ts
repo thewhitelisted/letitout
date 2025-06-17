@@ -79,8 +79,7 @@ export function formatDueDateTime(dateString: string | null): string {
     
     // Create date object from the string
     const date = new Date(dateString);
-    
-    // Check if the date is valid
+      // Check if the date is valid
     if (isNaN(date.getTime())) {
       return 'Invalid date';
     }
@@ -91,6 +90,21 @@ export function formatDueDateTime(dateString: string | null): string {
     
     // For dates ending with Z (UTC dates from the backend):
     if (dateString.endsWith('Z')) {
+      // First check if the time part is midnight (00:00:00) - if so, just show the date
+      const isJustDate = date.getUTCHours() === 0 && 
+                        date.getUTCMinutes() === 0 && 
+                        date.getUTCSeconds() === 0;
+      
+      if (isJustDate) {
+        // Just show the date if there's no specific time
+        const datePart = date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short', 
+          day: 'numeric'
+        });
+        return datePart;
+      }
+      
       // Get the UTC hours and minutes (the actual values in the database)
       const utcHours = date.getUTCHours();
       const utcMinutes = date.getUTCMinutes();

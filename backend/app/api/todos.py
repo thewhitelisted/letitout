@@ -15,13 +15,16 @@ def create_todo():
     # Validate required fields
     if 'title' not in data or not data['title'].strip():
         return jsonify({'error': 'Title is required'}), 400
-    
-    # Parse due date if provided
+      # Parse due date if provided
     due_date = None
     if 'due_date' in data and data['due_date']:
         try:
-            due_date = datetime.fromisoformat(data['due_date'])
-        except ValueError:
+            # Parse ISO format date string and handle timezone info
+            due_date_str = data['due_date'].replace('Z', '+00:00')
+            due_date = datetime.fromisoformat(due_date_str)
+            print(f"Parsed due_date: {due_date} from input: {data['due_date']}")
+        except ValueError as e:
+            print(f"Error parsing due date: {e}")
             return jsonify({'error': 'Invalid date format for due_date'}), 400
     
     # Create todo

@@ -13,10 +13,10 @@ class Todo(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
     def to_dict(self):
         due_date_str = None
         if self.due_date:
+            # Add 'Z' to indicate UTC time zone (ISO 8601 format)
             due_date_str = self.due_date.isoformat() + 'Z'
             print(f"Todo due_date: Python obj={self.due_date}, ISO={due_date_str}")
             
