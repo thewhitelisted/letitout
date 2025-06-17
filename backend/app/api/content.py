@@ -8,6 +8,7 @@ from app.models.thought import Thought
 from app.models.todo import Todo
 from app.utils.ai_classifier import classify_input
 from datetime import datetime, timedelta
+import pytz # Added import
 
 content_bp = Blueprint('content', __name__)
 
@@ -23,7 +24,7 @@ def create_content():
     
     text = data['text'].strip()
     # Retrieve user_timezone from the request body, defaulting to 'UTC' if not provided.
-    user_timezone = data.get('timezone', 'UTC')
+    user_timezone = data.get('timezone', 'UTC') 
     
     # Use AI to classify the content as thought or todo
     content_type, formatted_data = classify_input(text, user_timezone)
@@ -47,8 +48,9 @@ def create_content():
         due_date = None
         if formatted_data['due_date']:
             print(f"Due date from AI classifier: {formatted_data['due_date']}")
-            due_date = validate_and_normalize_date(formatted_data['due_date'])
-            print(f"Normalized due date: {due_date}")
+            # Pass user_timezone to validate_and_normalize_date
+            due_date = validate_and_normalize_date(formatted_data['due_date'], user_timezone)
+            print(f"Normalized due date (UTC): {due_date}")
         
         # Create a todo
         new_todo = Todo(
@@ -143,6 +145,7 @@ def test_date_parsing():
     user_timezone = data.get('timezone', 'UTC')
     
     # Use AI to classify the content
+    # Pass user_timezone to classify_input and subsequently to validate_and_normalize_date if used directly
     content_type, formatted_data = classify_input(text, user_timezone)
     
     result = {
@@ -152,7 +155,8 @@ def test_date_parsing():
     
     # If it's a todo with a due date, add parsing info
     if content_type == 'todo' and formatted_data.get('due_date'):
-        parsed_date = validate_and_normalize_date(formatted_data['due_date'])
+        # Pass user_timezone to validate_and_normalize_date
+        parsed_date = validate_and_normalize_date(formatted_data['due_date'], user_timezone)
         result['parsed_date'] = {
             'original': formatted_data['due_date'],
             'parsed': str(parsed_date) if parsed_date else None,
@@ -161,69 +165,97 @@ def test_date_parsing():
     
     return jsonify(result)
 
-def validate_and_normalize_date(date_str):
+def validate_and_normalize_date(date_str: str, user_timezone_str: str): # New signature
     """
-    Validate and normalize a date string to a datetime object.
-    Always stores dates in UTC timezone in the database.
+    Validate and normalize a date string to a datetime object in UTC.
+    Interprets naive dates as being in user_timezone_str.
     
     Args:
         date_str (str): ISO format date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ss)
+        user_timezone_str (str): IANA timezone string for the user
         
     Returns:
         datetime or None: Normalized datetime object in UTC or None if invalid
     """
-    print(f"\n=== Date Validation Start ===")
-    print(f"Input date string: '{date_str}', Type: {type(date_str)}")
+    print(f"\\n=== Date Validation Start ===")
+    print(f"Input date string: '{date_str}', User Timezone: '{user_timezone_str}'")
     
     if not date_str:
         print("Empty date string, returning None")
+        print(f"=== Date Validation End ===\\n")
         return None
         
-    date_obj = None    
+    parsed_dt = None    
     try:
         # Handle Z suffix (UTC timezone marker) by converting to +00:00 format
-        # which is compatible with fromisoformat
         if isinstance(date_str, str) and date_str.endswith('Z'):
-            print(f"Found 'Z' suffix (UTC timezone), converting to +00:00 format")
-            date_str = date_str.replace('Z', '+00:00')
+            print(f"Found 'Z' suffix, converting to +00:00 format")
+            date_str = date_str[:-1] + '+00:00'
         
         # Check if we have a date with time (contains 'T' separator)
         if 'T' in date_str:
-            print(f"Found 'T' separator in date string, parsing with time component")
-            # Parse the ISO format with time
-            date_obj = datetime.fromisoformat(date_str)
-            print(f"Parsed with time: {date_obj}, hour={date_obj.hour}, minute={date_obj.minute}")
+            print(f"Found 'T' separator, parsing with time component: '{date_str}'")
+            parsed_dt = datetime.fromisoformat(date_str)
+            print(f"Parsed with time: {parsed_dt}, Original tzinfo: {parsed_dt.tzinfo}")
         else:
-            print(f"No 'T' separator found, parsing as date only and adding default time")
-            # Parse just the date and set default time to noon (12:00)
-            date_obj = datetime.fromisoformat(date_str)
-            print(f"Initial parse: {date_obj}")
-            date_obj = date_obj.replace(hour=12, minute=0, second=0)
-            print(f"After adding default time: {date_obj}")
-            print(f"Final datetime object: {date_obj}, UTC timestamp: {date_obj.timestamp()}")
-        print(f"=== Date Validation End ===\n")
+            print(f"No 'T' separator, parsing as date only: '{date_str}'")
+            temp_dt = datetime.fromisoformat(date_str) # Parses YYYY-MM-DD, naive
+            # Set default time to noon for date-only inputs
+            parsed_dt = temp_dt.replace(hour=12, minute=0, second=0, microsecond=0) # Still naive
+            print(f"Initial parse (date-only), set to noon: {parsed_dt}")
+
+        # Ensure the datetime is UTC
+        if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+            # Naive datetime: assume it's in the user's local timezone
+            print(f"Datetime is naive. Localizing with user_timezone: '{user_timezone_str}'")
+            try:
+                user_tz = pytz.timezone(user_timezone_str)
+            except pytz.exceptions.UnknownTimeZoneError:
+                print(f"Warning: Unknown user timezone '{user_timezone_str}'. Defaulting to UTC for localization.")
+                user_tz = pytz.utc
+            
+            localized_dt = user_tz.localize(parsed_dt)
+            utc_dt = localized_dt.astimezone(pytz.utc)
+            print(f"Localized to {user_timezone_str}: {localized_dt}, then converted to UTC: {utc_dt}")
+        else:
+            # Aware datetime: just convert to UTC
+            print(f"Datetime is aware. Original tzinfo: {parsed_dt.tzinfo}. Converting to UTC.")
+            utc_dt = parsed_dt.astimezone(pytz.utc)
+            print(f"Converted to UTC: {utc_dt}")
         
-        # Return the validated date
-        print(f"Normalized date being returned: {date_obj} (UTC timestamp: {date_obj.timestamp()})")
-        return date_obj
+        print(f"Normalized UTC date being returned: {utc_dt}")
+        print(f"=== Date Validation End ===\\n")
+        return utc_dt
+        
     except ValueError as e:
         print(f"Standard ISO format parsing error: {e}")
         
-        # Try some additional date formats
+        # Try MM/DD/YYYY format (fallback)
         try:
-            # Try MM/DD/YYYY format
             if '/' in date_str:
+                print(f"Attempting to parse fallback format MM/DD/YYYY for: '{date_str}'")
                 parts = date_str.split('/')
                 if len(parts) == 3:
                     month, day, year = map(int, parts)
                     # Set default time to noon
-                    date_obj = datetime(year, month, day, 12, 0, 0)
-                    print(f"Successfully parsed alternate format: {date_obj}")
-                    print(f"=== Date Validation End ===\n")
-                    return date_obj
+                    alt_parsed_dt = datetime(year, month, day, 12, 0, 0) # Naive
+                    print(f"Successfully parsed alternate format (naive): {alt_parsed_dt}")
+                    
+                    # Localize this naive datetime too
+                    try:
+                        user_tz = pytz.timezone(user_timezone_str)
+                    except pytz.exceptions.UnknownTimeZoneError:
+                        print(f"Warning: Unknown user timezone '{user_timezone_str}' for fallback. Defaulting to UTC.")
+                        user_tz = pytz.utc
+                    
+                    localized_alt_dt = user_tz.localize(alt_parsed_dt)
+                    utc_alt_dt = localized_alt_dt.astimezone(pytz.utc)
+                    print(f"Localized fallback to {user_timezone_str}: {localized_alt_dt}, then to UTC: {utc_alt_dt}")
+                    print(f"=== Date Validation End ===\\n")
+                    return utc_alt_dt
         except Exception as e2:
             print(f"Failed to parse alternate format: {e2}")
         
         print(f"All parsing attempts failed for '{date_str}'")
-        print(f"=== Date Validation End ===\n")
+        print(f"=== Date Validation End ===\\n")
         return None

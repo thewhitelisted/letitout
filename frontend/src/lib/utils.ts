@@ -1,6 +1,7 @@
 /**
  * Utility functions for the application
  */
+import { formatUtcToLocal } from './date-utils'; // Import the new function
 
 /**
  * Formats a date string in a user-friendly format
@@ -74,77 +75,42 @@ export function formatDateOnly(dateString: string | null): string {
  */
 export function formatDueDateTime(dateString: string | null): string {
   if (!dateString) return 'N/A';
-  
+
   try {
-    console.log(`Formatting due date: ${dateString}`);
+    console.log(`Formatting due date using formatUtcToLocal: ${dateString}`);
     
-    // Create date object from the string
+    // Check if the date string represents a date only (no specific time from AI)
+    // The backend now stores UTC, so if it was a date-only input, it might be YYYY-MM-DDT12:00:00Z
+    // or if AI provided time, it would be YYYY-MM-DDTHH:MM:SSZ
     const date = new Date(dateString);
-    
-    // Check if the date is valid
     if (isNaN(date.getTime())) {
       return 'Invalid date';
     }
-    
-    // For dates ending with Z (UTC dates from the backend):
-    if (dateString.endsWith('Z')) {
-      // First check if the time part is midnight (00:00:00) - if so, just show the date
-      const isJustDate = date.getUTCHours() === 0 && 
-                        date.getUTCMinutes() === 0 && 
-                        date.getUTCSeconds() === 0;
-      
-      if (isJustDate) {
-        // Just show the date if there's no specific time
-        const datePart = date.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short', 
-          day: 'numeric'
-        });
-        return datePart;
-      }
-      
-      // Get the UTC hours and minutes (the actual values in the database)
-      const utcHours = date.getUTCHours();
-      const utcMinutes = date.getUTCMinutes();
-      
-      // Format date part in local time (day/month/year)
-      const datePart = date.toLocaleDateString(undefined, {
+
+    // If the original input was likely date-only (AI set it to noon UTC), display only date.
+    // This is a heuristic. A more robust way would be if the API indicated if time was specified.
+    const isLikelyDateOnly = date.getUTCHours() === 12 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0;
+
+    if (isLikelyDateOnly) {
+      return formatUtcToLocal(dateString, {
         year: 'numeric',
-        month: 'short', 
-        day: 'numeric'
-      });
-      
-      // Format time using the UTC hours/minutes (this preserves the original time)
-      // Format in AM/PM format
-      let hours = utcHours;
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12;
-      hours = hours ? hours : 12; // Convert 0 to 12 for 12 AM
-      
-      const timePart = hours + ":" + 
-      new Intl.NumberFormat(undefined, {
-        minimumIntegerDigits: 2,
-        useGrouping: false
-      }).format(utcMinutes) + " " + ampm;
-      
-      console.log(`Formatted with preserved time: ${datePart} at ${timePart}`);
-      return `${datePart} at ${timePart}`;
+        month: 'short',
+        day: 'numeric',
+      }) || 'Invalid date';
+    } else {
+      // If time is present and not noon, display date and time
+      return formatUtcToLocal(dateString, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        // hour12: true, // Optional: depends on desired format
+        // timeZoneName: 'short' // Optional: to show timezone like PST, EST
+      }) || 'Invalid date';
     }
-    
-    // For dates without Z suffix, use standard formatting
-    const formatted = date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-    
-    console.log(`Standard formatted date: ${formatted}`);
-    return formatted;
   } catch (error) {
-    console.error('Error formatting date:', error);
+    console.error('Error formatting due date:', error);
     return 'Date error';
   }
 }
