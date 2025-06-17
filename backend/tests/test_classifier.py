@@ -19,13 +19,17 @@ def test_classifier():
         "Life has been so challenging lately, I need to find more balance"
     ]
     
-    print("Testing Gemini AI Classifier...")
+    # Define a sample timezone for testing. In a real scenario, this might vary.
+    sample_timezone = "America/New_York" 
+
+    print(f"Testing Gemini AI Classifier with timezone: {sample_timezone}...")
     print("=" * 50)
     
     for text in test_inputs:
         print(f"\nInput: {text}")
         try:
-            content_type, data = classify_input(text)
+            # Pass the sample_timezone to classify_input
+            content_type, data = classify_input(text, sample_timezone)
             print(f"Classified as: {content_type}")
             print(f"Formatted data: {data}")
         except Exception as e:

@@ -131,9 +131,10 @@ export const api = {
   // Content endpoints (AI-classified thoughts/todos)
   content: {
     create: async (text: string): Promise<ContentItem> => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       return fetchWithAuth('/content', {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, timezone }), // Add timezone to the request body
       });
     },
     

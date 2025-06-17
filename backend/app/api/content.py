@@ -22,9 +22,11 @@ def create_content():
         return jsonify({'error': 'Text content is required'}), 400
     
     text = data['text'].strip()
+    # Retrieve user_timezone from the request body, defaulting to 'UTC' if not provided.
+    user_timezone = data.get('timezone', 'UTC')
     
     # Use AI to classify the content as thought or todo
-    content_type, formatted_data = classify_input(text)
+    content_type, formatted_data = classify_input(text, user_timezone)
     
     if content_type == 'thought':
         # Create a thought
@@ -137,9 +139,11 @@ def test_date_parsing():
         return jsonify({'error': 'Text is required'}), 400
     
     text = data['text']
+    # Retrieve user_timezone from the request body for testing, defaulting to 'UTC'.
+    user_timezone = data.get('timezone', 'UTC')
     
     # Use AI to classify the content
-    content_type, formatted_data = classify_input(text)
+    content_type, formatted_data = classify_input(text, user_timezone)
     
     result = {
         'type': content_type,

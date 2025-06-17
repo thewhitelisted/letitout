@@ -6,6 +6,7 @@ import json
 import os
 from typing import Dict, Tuple, Union
 from datetime import datetime, timedelta
+import pytz  # Added import for timezone handling
 from google import genai
 from dotenv import load_dotenv
 
@@ -15,11 +16,20 @@ load_dotenv()
 # Configure the Gemini API with the key from the environment
 client=genai.Client(api_key=os.getenv("API_KEY"))
 
-def classify_input(text: str) -> Tuple[str, Dict[str, Union[str, bool, None]]]:
-    # Use local timezone instead of UTC for more accurate date processing
-    now_local = datetime.now()
-    today = now_local.strftime('%Y-%m-%d')
-    time = now_local.strftime('%H:%M:%S')
+# Updated function signature to include user_timezone_str
+def classify_input(text: str, user_timezone_str: str) -> Tuple[str, Dict[str, Union[str, bool, None]]]:
+    try:
+        user_tz = pytz.timezone(user_timezone_str)
+        now_in_user_tz = datetime.now(user_tz)
+    except pytz.exceptions.UnknownTimeZoneError:
+        # Fallback to UTC if the timezone string is invalid and log a warning.
+        print(f"Warning: Unknown timezone '{user_timezone_str}'. Defaulting to UTC.")
+        user_tz = pytz.utc
+        now_in_user_tz = datetime.now(user_tz)
+        user_timezone_str = "UTC"  # Update user_timezone_str for the prompt
+
+    today = now_in_user_tz.strftime('%Y-%m-%d')
+    time = now_in_user_tz.strftime('%H:%M:%S')
     
     prompt = f"""
     Analyze the following text and determine if it is a thought or a todo.
@@ -39,20 +49,23 @@ def classify_input(text: str) -> Tuple[str, Dict[str, Union[str, bool, None]]]:
     }}
 
     IMPORTANT RULES FOR DATES:
-    - Today's date is {today}
-    - Current time is {time}
+    - Today's date is {today} (timezone: {user_timezone_str})
+    - Current time is {time} (timezone: {user_timezone_str})
+    - All date/time interpretations should use the user's timezone: {user_timezone_str}.
     - For the due_date field, use the following format guidelines:
       - For date with time: Use format "YYYY-MM-DDThh:mm:ss" (example: "2025-06-17T15:30:00")
       - For date only: Use format "YYYY-MM-DD" (example: "2025-06-17")
     - If a specific time is mentioned (like "at 3pm", "by noon", etc.), include it in the due_date
-    - If only a date is mentioned with no time, just provide the date without time    - For relative dates:
-      - "tomorrow" means {(now_local + timedelta(days=1)).strftime('%Y-%m-%d')}
-      - "next week" means {(now_local + timedelta(days=7)).strftime('%Y-%m-%d')}
-      - "in 3 days" means {(now_local + timedelta(days=3)).strftime('%Y-%m-%d')}
+    - If only a date is mentioned with no time, just provide the date without time
+    - For relative dates (based on current user's date/time in {user_timezone_str}):
+      - "tomorrow" means {(now_in_user_tz + timedelta(days=1)).strftime('%Y-%m-%d')}
+      - "next week" means {(now_in_user_tz + timedelta(days=7)).strftime('%Y-%m-%d')}
+      - "in 3 days" means {(now_in_user_tz + timedelta(days=3)).strftime('%Y-%m-%d')}
     - If no date is mentioned, return null for due_date
-    - Never make up dates that aren't mentioned in the input    EXAMPLES:
-    - "Call John tomorrow at 3pm" → due_date: "{(now_local + timedelta(days=1)).strftime('%Y-%m-%d')}T15:00:00"
-    - "Buy groceries by Friday" → due_date: "2025-06-20" (if Friday is the 20th)
+    - Never make up dates that aren't mentioned in the input
+    EXAMPLES (current user's date/time is {today} {time} {user_timezone_str}):
+    - "Call John tomorrow at 3pm" → due_date: "{(now_in_user_tz + timedelta(days=1)).strftime('%Y-%m-%d')}T15:00:00"
+    - "Buy groceries by Friday" → due_date: "2025-06-20" (if Friday is the 20th, actual date will depend on {today})
     - "Remember to breathe" → due_date: null
 
     The text to analyze is: {text}
