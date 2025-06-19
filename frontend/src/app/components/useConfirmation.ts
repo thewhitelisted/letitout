@@ -63,13 +63,12 @@ export function useConfirmation() {  const [confirmation, setConfirmation] = use
       setLoading(false);
       // Don't hide the modal if there's an error, let the caller handle it
     }
-  }, [confirmation, hideConfirmation, setLoading]);
-  const handleCancel = useCallback(() => {
+  }, [confirmation, hideConfirmation, setLoading]);  const handleCancel = useCallback(() => {
     if (confirmation.onCancel) {
       confirmation.onCancel();
     }
     hideConfirmation();
-  }, [confirmation.onCancel, hideConfirmation]);
+  }, [confirmation, hideConfirmation]);
   return {
     confirmation,
     showConfirmation,
