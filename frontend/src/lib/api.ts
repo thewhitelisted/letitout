@@ -43,7 +43,7 @@ export interface Habit {
   title: string;
   description: string | null;
   frequency: 'daily' | 'weekly' | 'monthly';
-  frequency_data: any | null;
+  frequency_data: Record<string, unknown> | null;
   start_date: string;
   end_date: string | null;
   due_time: string | null;

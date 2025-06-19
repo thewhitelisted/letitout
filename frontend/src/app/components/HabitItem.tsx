@@ -1,7 +1,6 @@
 'use client';
 
 import { HabitInstance } from "../../lib/api";
-import { formatDate } from "../../lib/utils";
 import Spinner from "./Spinner";
 
 interface HabitItemProps {
@@ -47,10 +46,9 @@ export default function HabitItem({
         
       // Add time if available
       if (habitInstance.habit?.due_time) {
-        return `${formattedDate} at ${formatTime(habitInstance.habit.due_time)}`;
-      }
+        return `${formattedDate} at ${formatTime(habitInstance.habit.due_time)}`;      }
       return formattedDate;
-    } catch (error) {
+    } catch {
       return dateStr;
     }
   };

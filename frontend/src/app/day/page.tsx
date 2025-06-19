@@ -25,9 +25,8 @@ export default function MyDayPage() {
   const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);
   const [todaysHabits, setTodaysHabits] = useState<HabitInstance[]>([]);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
-
   // Confirmation modal hook
-  const { confirmation, showConfirmation, hideConfirmation, handleConfirm, handleCancel } = useConfirmation();// Get today's date in ISO format (YYYY-MM-DD)
+  const { confirmation, showConfirmation, handleConfirm, handleCancel } = useConfirmation();// Get today's date in ISO format (YYYY-MM-DD)
   const getTodayDateString = () => {
     // Use our date utility function to get today's date in local timezone
     const result = getLocalDateString();

@@ -55,18 +55,16 @@ export function useConfirmation() {  const [confirmation, setConfirmation] = use
   const setLoading = useCallback((loading: boolean) => {
     setConfirmation(prev => ({ ...prev, isLoading: loading }));
   }, []);
-
   const handleConfirm = useCallback(async () => {
     setLoading(true);
     try {
       await confirmation.onConfirm();
       hideConfirmation();
-    } catch (error) {
+    } catch {
       setLoading(false);
       // Don't hide the modal if there's an error, let the caller handle it
     }
   }, [confirmation.onConfirm, hideConfirmation, setLoading]);
-
   const handleCancel = useCallback(() => {
     if (confirmation.onCancel) {
       confirmation.onCancel();

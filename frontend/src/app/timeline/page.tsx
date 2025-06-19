@@ -31,9 +31,8 @@ export default function TimelinePage() {
     isVisible: false,
     message: "",
     type: "success" as "success" | "error" | "info"
-  });
-  // Confirmation modal hook
-  const { confirmation, showConfirmation, hideConfirmation, handleConfirm, handleCancel } = useConfirmation();
+  });  // Confirmation modal hook
+  const { confirmation, showConfirmation, handleConfirm, handleCancel } = useConfirmation();
 
   // Generate array of dates starting from today
   const generateDateRange = useCallback((numDays: number) => {
@@ -505,10 +504,9 @@ export default function TimelinePage() {
                     }
                   };
                   
-                  return `${formattedDate} at ${formatTime(habitInstance.habit.due_time)}`;
-                }
+                  return `${formattedDate} at ${formatTime(habitInstance.habit.due_time)}`;                }
                 return formattedDate;
-              } catch (error) {
+              } catch {
                 return dateStr;
               }
             })()}

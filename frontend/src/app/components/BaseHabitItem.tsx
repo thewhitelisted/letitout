@@ -1,7 +1,6 @@
 'use client';
 
 import { Habit } from "../../lib/api";
-import { formatDate } from "../../lib/utils";
 
 interface BaseHabitItemProps {
   habit: Habit;
@@ -37,8 +36,7 @@ export default function BaseHabitItem({
         year: 'numeric',
         month: 'short',
         day: 'numeric'
-      });
-    } catch (error) {
+      });    } catch {
       return dateStr;
     }
   };
