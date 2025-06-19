@@ -1,7 +1,10 @@
 # filepath: c:\Users\clee2\Documents\letitout\backend\app\models\todo.py
 from app.models.db import db
+from app.utils.logger import get_logger
 from datetime import datetime
 import uuid
+
+logger = get_logger(__name__)
 
 class Todo(db.Model):
     __tablename__ = 'todos'
@@ -20,7 +23,7 @@ class Todo(db.Model):
         if self.due_date:
             # Always convert to UTC ISO format with Z suffix to indicate UTC timezone
             due_date_str = self.due_date.isoformat() + 'Z'
-            print(f"Todo due_date: Python obj={self.due_date}, ISO={due_date_str}")
+            logger.debug(f"Todo due_date: Python obj={self.due_date}, ISO={due_date_str}")
             
         return {
             'id': self.id,

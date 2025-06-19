@@ -37,9 +37,37 @@ export interface Todo {
   updated_at: string;
 }
 
+export interface Habit {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency_data: any | null;
+  start_date: string;
+  end_date: string | null;
+  due_time: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HabitInstance {
+  id: string;
+  habit_id: string;
+  user_id: string;
+  due_date: string;
+  completed: boolean;
+  completed_at: string | null;
+  skipped: boolean;
+  created_at: string;
+  updated_at: string;
+  habit: Habit | null;
+}
+
 export interface ContentItem {
-  type: 'thought' | 'todo';
-  data: Thought | Todo;
+  type: 'thought' | 'todo' | 'habit';
+  data: Thought | Todo | Habit;
 }
 
 // Helper for making authenticated requests
@@ -117,12 +145,15 @@ export const api = {
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       });
     },
-    
-    getUserStats: async (): Promise<{
+      getUserStats: async (): Promise<{
       thoughts_count: number;
       todos_count: number;
       completed_todos_count: number;
       completion_rate: number;
+      habits_count: number;
+      habit_instances_total: number;
+      habit_instances_completed: number;
+      habit_completion_rate: number;
     }> => {
       return fetchWithAuth('/auth/stats');
     },
@@ -170,6 +201,62 @@ export const api = {
     delete: async (id: string): Promise<void> => {
       return fetchWithAuth(`/thoughts/${id}`, {
         method: 'DELETE',
+      });    },
+  },
+  
+  // Habits endpoints
+  habits: {
+    getAll: async (is_active?: boolean): Promise<Habit[]> => {
+      const query = is_active !== undefined ? `?is_active=${is_active}` : '';
+      return fetchWithAuth(`/habits${query}`);
+    },
+    
+    getById: async (id: string): Promise<Habit> => {
+      return fetchWithAuth(`/habits/${id}`);
+    },
+    
+    create: async (title: string, description?: string, frequency?: string, start_date?: string): Promise<Habit> => {
+      return fetchWithAuth('/habits', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, frequency, start_date }),
+      });
+    },
+    
+    update: async (id: string, data: Partial<Habit>): Promise<Habit> => {
+      return fetchWithAuth(`/habits/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    delete: async (id: string, deleteAllFuture: boolean = false): Promise<void> => {
+      return fetchWithAuth(`/habits/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ delete_all_future: deleteAllFuture }),
+      });
+    },
+    
+    // Habit instances
+    getInstances: async (start_date?: string, end_date?: string, completed?: boolean): Promise<HabitInstance[]> => {
+      const params = new URLSearchParams();
+      if (start_date) params.append('start_date', start_date);
+      if (end_date) params.append('end_date', end_date);
+      if (completed !== undefined) params.append('completed', completed.toString());
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return fetchWithAuth(`/habits/instances${query}`);
+    },
+    
+    updateInstance: async (id: string, data: Partial<HabitInstance>): Promise<HabitInstance> => {
+      return fetchWithAuth(`/habits/instances/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    deleteInstance: async (id: string, deleteAllFuture: boolean = false): Promise<void> => {
+      return fetchWithAuth(`/habits/instances/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ delete_all_future: deleteAllFuture }),
       });
     },
   },

@@ -10,9 +10,12 @@ export function getLocalDateString(date = new Date()): string {
 export function utcToLocalDateString(isoString: string | null): string | null {
   if (!isoString) return null;
   
-  // Create date object (browser will interpret as UTC if ISO format with Z or offset)
-  // The Date object itself represents a single moment in time.
-  // Methods like getFullYear(), getMonth(), getDate() operate in the local time zone.
+  // If it's already a date-only string (YYYY-MM-DD), return it as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+    return isoString;
+  }
+  
+  // For datetime strings, do timezone conversion
   const date = new Date(isoString);
   if (isNaN(date.getTime())) {
     console.error("Invalid date string for utcToLocalDateString:", isoString);

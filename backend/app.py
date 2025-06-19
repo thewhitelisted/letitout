@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -24,25 +24,29 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)
-    jwt = JWTManager(app)
+    jwt = JWTManager(app)    # Configure CORS with specific origin only
+    CORS(app, 
+         origins=[os.getenv('FRONTEND_URL', 'http://localhost:3000')],
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         supports_credentials=False)
     
-    # Configure CORS
-    CORS(app, resources={r"/api/*": {"origins": os.getenv('FRONTEND_URL', 'http://localhost:3000')}})
-      # Import blueprints here to avoid circular imports
+    # Import blueprints here to avoid circular imports
     from app.api.thoughts import thoughts_bp
     from app.api.todos import todos_bp
+    from app.api.habits import habits_bp
     from app.api.auth import auth_bp
     from app.api.content import content_bp
     from app.utils.helpers import APIError, handle_api_error
-    
-    # Register error handlers
+      # Register error handlers
     app.errorhandler(APIError)(handle_api_error)
-      # Register blueprints
+    
+    # Register blueprints
     app.register_blueprint(thoughts_bp, url_prefix='/api/thoughts')
     app.register_blueprint(todos_bp, url_prefix='/api/todos')
+    app.register_blueprint(habits_bp, url_prefix='/api/habits')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(content_bp, url_prefix='/api/content')
-    # Health check endpoint
+    app.register_blueprint(content_bp, url_prefix='/api/content')    # Health check endpoint
     @app.route('/api/health')
     def health_check():
         return {'status': 'ok'}

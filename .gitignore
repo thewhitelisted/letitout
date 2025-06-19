@@ -61,3 +61,7 @@ __pycache__/
 
 /backend/instance
 /instance
+
+# Logs
+/backend/logs/
+*.log

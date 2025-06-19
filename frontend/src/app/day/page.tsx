@@ -5,7 +5,10 @@ import Link from "next/link";
 import PageTransition from "../components/PageTransition";
 import Notification from "../components/Notification";
 import Spinner from "../components/Spinner";
-import { api, Thought, Todo } from "../../lib/api";
+import ConfirmationModal from "../components/ConfirmationModal";
+import HabitItem from "../components/HabitItem";
+import { useConfirmation } from "../components/useConfirmation";
+import { api, Thought, Todo, HabitInstance } from "../../lib/api";
 import { formatDate, formatDueDateTime } from "../../lib/utils"
 import { getLocalDateString, utcToLocalDateString } from "../../lib/date-utils";
 
@@ -17,35 +20,33 @@ export default function MyDayPage() {
     message: "",
     type: "success" as "success" | "error" | "info"
   });
-  
-  // Track today's todos and thoughts separately
+    // Track today's todos, thoughts, and habits separately
   const [todaysTodos, setTodaysTodos] = useState<Todo[]>([]);
   const [todaysThoughts, setTodaysThoughts] = useState<Thought[]>([]);
-  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});// Get today's date in ISO format (YYYY-MM-DD)
+  const [todaysHabits, setTodaysHabits] = useState<HabitInstance[]>([]);
+  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
+
+  // Confirmation modal hook
+  const { confirmation, showConfirmation, hideConfirmation, handleConfirm, handleCancel } = useConfirmation();// Get today's date in ISO format (YYYY-MM-DD)
   const getTodayDateString = () => {
     // Use our date utility function to get today's date in local timezone
     const result = getLocalDateString();
     console.log(`Today's date for comparison: ${result}`);
     return result;
   };
-  
-  // Fetch all content
+    // Fetch all content
   const fetchContent = useCallback(async () => {
     try {
-      console.log("Fetching content with auth token:", localStorage.getItem('token'));
       const data = await api.content.getAll();
-      console.log("Content fetched successfully:", data);
       
       // Get today's date for filtering
       const todayStr = getTodayDateString();
       console.log("Today's date for filtering:", todayStr);
-      
-      // Filter todos due today
+        // Filter todos due today, thoughts created today, and habits due today
       const todosForToday: Todo[] = [];
-      // Filter thoughts created today
       const thoughtsForToday: Thought[] = [];
-      
-      // Process each content item
+      const habitsForToday: HabitInstance[] = [];
+        // Process each content item (only thoughts and todos now)
       data.forEach(item => {
         if (item.type === 'todo') {
           const todo = item.data as Todo;
@@ -80,8 +81,16 @@ export default function MyDayPage() {
           }
         }
       });
-      
-      // Sort todos by due time (ascending)
+
+      // Fetch today's habit instances separately
+      try {
+        const habitInstances = await api.habits.getInstances(todayStr, todayStr);
+        habitsForToday.push(...habitInstances);
+        console.log(`Found ${habitInstances.length} habit instances due today`);
+      } catch (error) {
+        console.error('Error fetching habit instances:', error);
+      }
+        // Sort todos by due time (ascending)
       todosForToday.sort((a, b) => {
         if (!a.due_date) return 1; // No due date goes last
         if (!b.due_date) return -1; // No due date goes last
@@ -95,11 +104,21 @@ export default function MyDayPage() {
         return b.created_at.localeCompare(a.created_at);
       });
       
-      console.log(`Found ${todosForToday.length} todos due today`);
-      console.log(`Found ${thoughtsForToday.length} thoughts created today`);
-      
-      setTodaysTodos(todosForToday);
+      // Sort habits by due time, then by creation time
+      habitsForToday.sort((a, b) => {
+        // If both have habits with due times, sort by due time
+        if (a.habit?.due_time && b.habit?.due_time) {
+          return a.habit.due_time.localeCompare(b.habit.due_time);
+        }
+        // If only one has due time, prioritize it
+        if (a.habit?.due_time) return -1;
+        if (b.habit?.due_time) return 1;
+        // Otherwise sort by creation time
+        return a.created_at.localeCompare(b.created_at);
+      });
+        setTodaysTodos(todosForToday);
       setTodaysThoughts(thoughtsForToday);
+      setTodaysHabits(habitsForToday);
     } catch (error) {
       console.error('Error fetching content:', error);
       showNotification('Failed to load your content. Please try again.', 'error');
@@ -132,11 +151,9 @@ export default function MyDayPage() {
       // Redirect to login if not authenticated
       window.location.href = "/login";
     }
-    
-    // Add event listener for manual refresh with Ctrl+R key
+      // Add event listener for manual refresh with Ctrl+R key
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
-        console.log("Manual refresh triggered");
         if (isTokenPresent) {
           fetchContent();
         }
@@ -203,25 +220,31 @@ export default function MyDayPage() {
       }
     };    // Function to delete todo
     const handleDeleteTodo = async () => {
-      if (confirm('Are you sure you want to delete this todo?')) {
-        try {
-          setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: true }));
-          await api.todos.delete(todo.id);
-          
-          // Update local state
-          setTodaysTodos(prevTodos => 
-            prevTodos.filter(t => t.id !== todo.id)
-          );
-          
-          // Show notification
-          showNotification('Todo deleted successfully');
-        } catch (error) {
-          console.error('Error deleting todo:', error);
-          showNotification('Failed to delete todo', 'error');
-        } finally {
-          setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: false }));
+      showConfirmation(
+        async () => {
+          try {
+            await api.todos.delete(todo.id);
+            
+            // Update local state
+            setTodaysTodos(prevTodos => 
+              prevTodos.filter(t => t.id !== todo.id)
+            );
+            
+            // Show notification
+            showNotification('Todo deleted successfully');
+          } catch (error) {
+            console.error('Error deleting todo:', error);
+            showNotification('Failed to delete todo', 'error');
+            throw error; // Re-throw to keep modal open
+          }
+        },
+        {
+          title: 'Delete Todo',
+          message: 'Are you sure you want to delete this todo? This action cannot be undone.',
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
         }
-      }
+      );
     };
     
     return (
@@ -258,42 +281,44 @@ export default function MyDayPage() {
             onClick={handleDeleteTodo}
             className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
             aria-label="Delete todo"
-            disabled={loadingItems[`todo-${todo.id}`]}
           >
-            {loadingItems[`todo-${todo.id}`] ? (
-              <Spinner size="sm" className="text-gray-400" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            )}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
           </button>
         </div>
       </div>
     );
   };
-    // Render a thought item
-  const renderThoughtItem = (thought: Thought) => {    // Function to delete thought
+  // Render a thought item
+  const renderThoughtItem = (thought: Thought) => {
+    // Function to delete thought
     const handleDeleteThought = async () => {
-      if (confirm('Are you sure you want to delete this thought?')) {
-        try {
-          setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: true }));
-          await api.thoughts.delete(thought.id);
-          
-          // Update local state
-          setTodaysThoughts(prevThoughts => 
-            prevThoughts.filter(t => t.id !== thought.id)
-          );
-          
-          // Show notification
-          showNotification('Thought deleted successfully');
-        } catch (error) {
-          console.error('Error deleting thought:', error);
-          showNotification('Failed to delete thought', 'error');
-        } finally {
-          setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: false }));
+      showConfirmation(
+        async () => {
+          try {
+            await api.thoughts.delete(thought.id);
+            
+            // Update local state
+            setTodaysThoughts(prevThoughts => 
+              prevThoughts.filter(t => t.id !== thought.id)
+            );
+            
+            // Show notification
+            showNotification('Thought deleted successfully');
+          } catch (error) {
+            console.error('Error deleting thought:', error);
+            showNotification('Failed to delete thought', 'error');
+            throw error; // Re-throw to keep modal open
+          }
+        },
+        {
+          title: 'Delete Thought',
+          message: 'Are you sure you want to delete this thought? This action cannot be undone.',
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
         }
-      }
+      );
     };
     
     return (
@@ -302,22 +327,71 @@ export default function MyDayPage() {
         <div className="flex justify-between items-center">
           <p className="text-xs text-gray-500 mt-2">
             {formatDate(thought.created_at)}
-          </p>          <button 
+          </p>
+          <button 
             onClick={handleDeleteThought}
             className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
             aria-label="Delete thought"
-            disabled={loadingItems[`thought-${thought.id}`]}
           >
-            {loadingItems[`thought-${thought.id}`] ? (
-              <Spinner size="sm" className="text-gray-400" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            )}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
           </button>
         </div>
       </div>
+    );
+  };
+
+  // Toggle habit completion
+  const toggleHabitCompletion = async (habitInstance: HabitInstance) => {
+    try {
+      setLoadingItems(prev => ({ ...prev, [`habit-toggle-${habitInstance.id}`]: true }));
+      
+      const updatedInstance = await api.habits.updateInstance(habitInstance.id, {
+        completed: !habitInstance.completed
+      });
+      
+      // Update local state
+      setTodaysHabits(prevHabits => 
+        prevHabits.map(h => 
+          h.id === habitInstance.id ? updatedInstance : h
+        )
+      );
+      
+      showNotification(`Habit marked as ${updatedInstance.completed ? 'completed' : 'incomplete'}`);
+    } catch (error) {
+      console.error('Error updating habit instance:', error);
+      showNotification('Failed to update habit status', 'error');
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [`habit-toggle-${habitInstance.id}`]: false }));
+    }
+  };
+  // Delete habit instance
+  const deleteHabitInstance = async (habitInstance: HabitInstance) => {
+    showConfirmation(
+      async () => {
+        try {
+          await api.habits.deleteInstance(habitInstance.id, false);
+          
+          // Update local state
+          setTodaysHabits(prevHabits => 
+            prevHabits.filter(h => h.id !== habitInstance.id)
+          );
+          
+          showNotification('Habit instance deleted successfully');
+        } catch (error) {
+          console.error('Error deleting habit instance:', error);
+          showNotification('Failed to delete habit instance', 'error');
+          throw error; // Re-throw to keep modal open
+        }
+      },
+      {
+        title: 'Delete Habit Instance',
+        message: 'Are you sure you want to delete this habit instance? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        variant: 'danger'
+      }
     );
   };
 
@@ -371,6 +445,33 @@ export default function MyDayPage() {
                       create a todo
                     </Link>
                   </div>
+                )}              </section>
+              
+              {/* Today's habits section */}
+              <section className="mb-12">
+                <h2 className="text-2xl font-bold text-black mb-4">habits due today:</h2>
+                {todaysHabits.length > 0 ? (
+                  <div>
+                    {todaysHabits.map(habitInstance => (
+                      <HabitItem
+                        key={habitInstance.id}
+                        habitInstance={habitInstance}
+                        loadingItems={loadingItems}
+                        onToggleCompletion={toggleHabitCompletion}
+                        onDelete={deleteHabitInstance}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">no habits scheduled for today.</p>
+                    <Link 
+                      href="/" 
+                      className="inline-block mt-4 bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow text-sm"
+                    >
+                      create a habit
+                    </Link>
+                  </div>
                 )}
               </section>
               
@@ -397,13 +498,24 @@ export default function MyDayPage() {
           </main>
         </div>
       </PageTransition>
-      
-      {/* Notification component */}
+        {/* Notification component */}
       <Notification 
         message={notification.message}
         type={notification.type}
         isVisible={notification.isVisible}
         onClose={hideNotification}
+      />
+      
+      {/* Confirmation Modal */}      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        title={confirmation.title}
+        message={confirmation.message}
+        confirmText={confirmation.confirmText}
+        cancelText={confirmation.cancelText}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        variant={confirmation.variant}
+        isLoading={confirmation.isLoading}
       />
     </>
   );

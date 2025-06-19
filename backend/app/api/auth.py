@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models.db import db
 from app.models.user import User
+from app.models.habit import Habit, HabitInstance
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -112,17 +113,36 @@ def get_user_stats():
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
-    
-    # Count thoughts
+      # Count thoughts
     thought_count = len(user.thoughts)
     
     # Count todos and completed todos
     todo_count = len(user.todos)
     completed_todo_count = sum(1 for todo in user.todos if todo.completed)
     
+    # Count habits and habit completion stats
+    active_habits = Habit.query.filter_by(user_id=user_id, is_active=True).all()
+    habit_count = len(active_habits)
+      # Get habit instances from the last 30 days
+    from datetime import date, timedelta
+    today = date.today()
+    thirty_days_ago = today - timedelta(days=30)
+    recent_instances = HabitInstance.query.filter(
+        HabitInstance.user_id == user_id,
+        HabitInstance.due_date >= thirty_days_ago,
+        HabitInstance.due_date <= today
+    ).all()
+    
+    total_instances = len(recent_instances)
+    completed_instances = sum(1 for instance in recent_instances if instance.completed)
+    
     return jsonify({
         'thoughts_count': thought_count,
         'todos_count': todo_count,
         'completed_todos_count': completed_todo_count,
-        'completion_rate': round(completed_todo_count / todo_count * 100, 1) if todo_count > 0 else 0
+        'completion_rate': round(completed_todo_count / todo_count * 100, 1) if todo_count > 0 else 0,
+        'habits_count': habit_count,
+        'habit_instances_total': total_instances,
+        'habit_instances_completed': completed_instances,
+        'habit_completion_rate': round(completed_instances / total_instances * 100, 1) if total_instances > 0 else 0
     })

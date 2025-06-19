@@ -10,12 +10,15 @@ import { api, User } from "../../lib/api";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [stats, setStats] = useState<{
+  const [user, setUser] = useState<User | null>(null);  const [stats, setStats] = useState<{
     thoughts_count: number;
     todos_count: number;
     completed_todos_count: number;
     completion_rate: number;
+    habits_count: number;
+    habit_instances_total: number;
+    habit_instances_completed: number;
+    habit_completion_rate: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState({
@@ -239,11 +242,11 @@ export default function ProfilePage() {
                       </form>
                     )}
                   </section>
-                  
-                  {/* User stats */}
+                    {/* User stats */}
                   {stats && (
-                    <section className="bg-gray-50 p-6 rounded-lg shadow-sm">
-                      <h2 className="text-2xl font-bold text-black mb-4">my stats:</h2>                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <section className="bg-gray-50 p-6 rounded-lg shadow-sm mb-6">
+                      <h2 className="text-2xl font-bold text-black mb-4">todo stats:</h2>
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
                         <div className="text-center p-4 bg-white rounded-md shadow-sm">
                           <p className="text-4xl font-bold text-black">{stats.thoughts_count}</p>
                           <p className="text-black">thoughts</p>
@@ -259,6 +262,26 @@ export default function ProfilePage() {
                         <div className="text-center p-4 bg-white rounded-md shadow-sm">
                           <p className="text-4xl font-bold text-black">{stats.completion_rate}%</p>
                           <p className="text-black">completion rate</p>
+                        </div>
+                      </div>
+                      
+                      <h2 className="text-2xl font-bold text-black mb-4">habit stats (last 30 days):</h2>
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div className="text-center p-4 bg-white rounded-md shadow-sm">
+                          <p className="text-4xl font-bold text-black">{stats.habits_count}</p>
+                          <p className="text-black">active habits</p>
+                        </div>
+                        <div className="text-center p-4 bg-white rounded-md shadow-sm">
+                          <p className="text-4xl font-bold text-black">{stats.habit_instances_completed}</p>
+                          <p className="text-black">completed</p>
+                        </div>
+                        <div className="text-center p-4 bg-white rounded-md shadow-sm">
+                          <p className="text-4xl font-bold text-black">{stats.habit_instances_total}</p>
+                          <p className="text-black">total instances</p>
+                        </div>
+                        <div className="text-center p-4 bg-white rounded-md shadow-sm">
+                          <p className="text-4xl font-bold text-black">{stats.habit_completion_rate}%</p>
+                          <p className="text-black">habit completion rate</p>
                         </div>
                       </div>
                     </section>

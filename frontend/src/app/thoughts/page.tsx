@@ -5,7 +5,10 @@ import Link from "next/link";
 import PageTransition from "../components/PageTransition";
 import Notification from "../components/Notification";
 import Spinner from "../components/Spinner";
-import { api, ContentItem, Thought, Todo } from "../../lib/api";
+import ConfirmationModal from "../components/ConfirmationModal";
+import BaseHabitItem from "../components/BaseHabitItem";
+import { useConfirmation } from "../components/useConfirmation";
+import { api, ContentItem, Thought, Todo, Habit } from "../../lib/api";
 import { formatDate, formatDueDateTime } from "../../lib/utils";
 
 export default function ThoughtsPage() {  
@@ -17,21 +20,26 @@ export default function ThoughtsPage() {
     message: "",
     type: "success" as "success" | "error" | "info"
   });
-  const [filter, setFilter] = useState<'all' | 'thought' | 'todo'>('all');
+  const [filter, setFilter] = useState<'all' | 'thought' | 'todo' | 'habit'>('all');
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
-
+    // Confirmation modal state
+  const { 
+    showConfirmation, 
+    confirmation, 
+    handleConfirm, 
+    handleCancel 
+  } = useConfirmation();
   // Fetch all content
   const fetchContent = useCallback(async () => {
     try {
-      console.log("Fetching content with auth token:", localStorage.getItem('token'));
       const data = await api.content.getAll();
-      console.log("Content fetched successfully:", data);
       setContent(data);
     } catch (error) {
       console.error('Error fetching content:', error);
       showNotification('Failed to load your content. Please try again.', 'error');
     }
   }, []);
+
   // Check if user is authenticated and fetch content
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -104,30 +112,36 @@ export default function ThoughtsPage() {
     // Render todo or thought item
   const renderContentItem = (item: ContentItem) => {
     if (item.type === 'thought') {
-      const thought = item.data as Thought;
-        // Function to delete thought
+      const thought = item.data as Thought;      // Function to delete thought
       const handleDeleteThought = async () => {
-        if (confirm('Are you sure you want to delete this thought?')) {
-          try {
-            setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: true }));
-            await api.thoughts.delete(thought.id);
-            
-            // Update local state
-            setContent(prevContent => 
-              prevContent.filter(contentItem => 
-                !(contentItem.type === 'thought' && (contentItem.data as Thought).id === thought.id)
-              )
-            );
-            
-            // Show notification
-            showNotification('Thought deleted successfully');
-          } catch (error) {
-            console.error('Error deleting thought:', error);
-            showNotification('Failed to delete thought', 'error');
-          } finally {
-            setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: false }));
+        showConfirmation(
+          async () => {
+            try {
+              await api.thoughts.delete(thought.id);
+              
+              // Update local state
+              setContent(prevContent => 
+                prevContent.filter(contentItem => 
+                  !(contentItem.type === 'thought' && (contentItem.data as Thought).id === thought.id)
+                )
+              );
+              
+              // Show notification
+              showNotification('Thought deleted successfully');
+            } catch (error) {
+              console.error('Error deleting thought:', error);
+              showNotification('Failed to delete thought', 'error');
+              throw error; // Re-throw to keep modal open
+            }
+          },
+          {
+            title: 'Delete Thought',
+            message: 'Are you sure you want to delete this thought? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
           }
-        }
+        );
       };
       
       return (
@@ -140,15 +154,10 @@ export default function ThoughtsPage() {
               onClick={handleDeleteThought}
               className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
               aria-label="Delete thought"
-              disabled={loadingItems[`thought-${thought.id}`]}
             >
-              {loadingItems[`thought-${thought.id}`] ? (
-                <Spinner size="sm" className="text-gray-400" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
           </div>
         </div>
@@ -179,30 +188,36 @@ export default function ThoughtsPage() {
         } finally {
           setLoadingItems(prev => ({ ...prev, [`todo-toggle-${todo.id}`]: false }));
         }
-      };
-        // Function to delete todo
+      };      // Function to delete todo
       const handleDeleteTodo = async () => {
-        if (confirm('Are you sure you want to delete this todo?')) {
-          try {
-            setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: true }));
-            await api.todos.delete(todo.id);
-            
-            // Update local state
-            setContent(prevContent => 
-              prevContent.filter(contentItem => 
-                !(contentItem.type === 'todo' && (contentItem.data as Todo).id === todo.id)
-              )
-            );
-            
-            // Show notification
-            showNotification('Todo deleted successfully');
-          } catch (error) {
-            console.error('Error deleting todo:', error);
-            showNotification('Failed to delete todo', 'error');
-          } finally {
-            setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: false }));
+        showConfirmation(
+          async () => {
+            try {
+              await api.todos.delete(todo.id);
+              
+              // Update local state
+              setContent(prevContent => 
+                prevContent.filter(contentItem => 
+                  !(contentItem.type === 'todo' && (contentItem.data as Todo).id === todo.id)
+                )
+              );
+              
+              // Show notification
+              showNotification('Todo deleted successfully');
+            } catch (error) {
+              console.error('Error deleting todo:', error);
+              showNotification('Failed to delete todo', 'error');
+              throw error; // Re-throw to keep modal open
+            }
+          },
+          {
+            title: 'Delete Todo',
+            message: 'Are you sure you want to delete this todo? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
           }
-        }
+        );
       };
         return (
         <div key={todo.id} className="bg-gray-50 p-4 rounded-lg mb-4 shadow-sm border-l-4 border-black">          <div className="flex items-center">
@@ -238,18 +253,49 @@ export default function ThoughtsPage() {
               onClick={handleDeleteTodo}
               className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
               aria-label="Delete todo"
-              disabled={loadingItems[`todo-${todo.id}`]}
             >
-              {loadingItems[`todo-${todo.id}`] ? (
-                <Spinner size="sm" className="text-gray-400" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
-          </div>
-        </div>
+          </div>        </div>
+      );    } else if (item.type === 'habit') {
+      const habit = item.data as Habit;      // Delete habit
+      const deleteHabit = async () => {
+        showConfirmation(
+          async () => {
+            try {
+              await api.habits.delete(habit.id, true); // Delete all future instances
+              
+              // Update local state
+              setContent(prevContent => 
+                prevContent.filter(contentItem => 
+                  !(contentItem.type === 'habit' && (contentItem.data as Habit).id === habit.id)
+                )
+              );
+              
+              showNotification('Habit deleted successfully');
+            } catch (error) {
+              console.error('Error deleting habit:', error);
+              showNotification('Failed to delete habit', 'error');
+              throw error; // Re-throw to keep modal open
+            }
+          },
+          {
+            title: 'Delete Habit',
+            message: 'Are you sure you want to delete this habit and all its future instances? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+          }
+        );
+      };
+      
+      return (        <BaseHabitItem
+          key={habit.id}
+          habit={habit}
+          onDelete={deleteHabit}
+        />
       );
     } else {
       // Unknown content type
@@ -289,9 +335,8 @@ export default function ThoughtsPage() {
 
           {/* Main content */}
           <main className="flex flex-col items-center justify-center flex-grow py-16 w-full max-w-3xl mx-auto">
-            <div className="w-full">
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-4xl font-bold text-black">my thoughts & todos:</h1>
+            <div className="w-full">              <div className="flex justify-between items-center mb-8">
+                <h1 className="text-4xl font-bold text-black">my thoughts, todos & habits:</h1>
                 {/* Filtering controls */}
                 <div className="flex gap-2">
                   <button 
@@ -312,6 +357,12 @@ export default function ThoughtsPage() {
                   >
                     todos
                   </button>
+                  <button 
+                    onClick={() => setFilter('habit')}
+                    className={`px-4 py-2 rounded-md shadow-md transition-shadow ${filter === 'habit' ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}
+                  >
+                    habits
+                  </button>
                 </div>
               </div>
               
@@ -323,13 +374,14 @@ export default function ThoughtsPage() {
                       {getFilteredContent().map(item => renderContentItem(item))}
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500 text-lg">
+                    <div className="text-center py-12">                      <p className="text-gray-500 text-lg">
                         {filter === 'all' 
-                          ? "you don't have any thoughts or todos yet." 
+                          ? "you don't have any thoughts, todos, or habits yet." 
                           : filter === 'thought' 
                             ? "you don't have any thoughts yet."
-                            : "you don't have any todos yet."
+                            : filter === 'todo'
+                              ? "you don't have any todos yet."
+                              : "you don't have any habits yet."
                         }
                       </p>
                       <Link 
@@ -346,13 +398,24 @@ export default function ThoughtsPage() {
           </main>
         </div>
       </PageTransition>
-      
-      {/* Notification component */}
+        {/* Notification component */}
       <Notification 
         message={notification.message}
         type={notification.type}
         isVisible={notification.isVisible}
         onClose={hideNotification}
+      />
+        {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        title={confirmation.title}
+        message={confirmation.message}
+        confirmText={confirmation.confirmText}
+        cancelText={confirmation.cancelText}
+        variant={confirmation.variant}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        isLoading={confirmation.isLoading}
       />
     </>
   );

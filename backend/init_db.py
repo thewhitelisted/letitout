@@ -15,6 +15,7 @@ from app.models.db import db
 from app.models.user import User
 from app.models.thought import Thought
 from app.models.todo import Todo
+from app.models.habit import Habit, HabitInstance
 
 def init_db():
     """Initialize the database with tables"""

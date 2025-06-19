@@ -2,7 +2,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.db import db
 from app.models.todo import Todo
+from app.utils.logger import get_logger
 from datetime import datetime
+
+logger = get_logger(__name__)
 
 todos_bp = Blueprint('todos', __name__)
 
@@ -22,9 +25,9 @@ def create_todo():
             # Parse ISO format date string and handle timezone info
             due_date_str = data['due_date'].replace('Z', '+00:00')
             due_date = datetime.fromisoformat(due_date_str)
-            print(f"Parsed due_date: {due_date} from input: {data['due_date']}")
+            logger.debug(f"Parsed due_date: {due_date} from input: {data['due_date']}")
         except ValueError as e:
-            print(f"Error parsing due date: {e}")
+            logger.debug(f"Error parsing due date: {e}")
             return jsonify({'error': 'Invalid date format for due_date'}), 400
     
     # Create todo
