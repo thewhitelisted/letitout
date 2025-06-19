@@ -4,6 +4,7 @@ import { useState, FormEvent, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import PageTransition from "./components/PageTransition";
 import Notification from "./components/Notification";
+import Spinner from "./components/Spinner";
 import { api, ContentItem, Thought, Todo } from "../lib/api";
 import { formatDate, formatDueDateTime } from "../lib/utils";
 
@@ -13,6 +14,7 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [userName, setUserName] = useState("");
+  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const [notification, setNotification] = useState({
     isVisible: false,
     message: "",
@@ -135,11 +137,11 @@ export default function Home() {
   const renderContentItem = (item: ContentItem) => {
     if (item.type === 'thought') {
       const thought = item.data as Thought;
-      
-      // Function to delete thought
+        // Function to delete thought
       const handleDeleteThought = async () => {
         if (confirm('Are you sure you want to delete this thought?')) {
           try {
+            setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: true }));
             await api.thoughts.delete(thought.id);
             
             // Update local state
@@ -154,6 +156,8 @@ export default function Home() {
           } catch (error) {
             console.error('Error deleting thought:', error);
             showNotification('Failed to delete thought', 'error');
+          } finally {
+            setLoadingItems(prev => ({ ...prev, [`thought-${thought.id}`]: false }));
           }
         }
       };
@@ -164,25 +168,29 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <p className="text-xs text-gray-500 mt-2">
               {formatDate(thought.created_at)}
-            </p>
-            <button 
+            </p>            <button 
               onClick={handleDeleteThought}
-              className="text-gray-400 hover:text-black transition-colors"
+              className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
               aria-label="Delete thought"
+              disabled={loadingItems[`thought-${thought.id}`]}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              {loadingItems[`thought-${thought.id}`] ? (
+                <Spinner size="sm" className="text-gray-400" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
       );
     } else if (item.type === 'todo') {
       const todo = item.data as Todo;
-      
-      // Function to toggle todo completion
+        // Function to toggle todo completion
       const toggleTodoCompletion = async () => {
         try {
+          setLoadingItems(prev => ({ ...prev, [`todo-toggle-${todo.id}`]: true }));
           const updatedTodo = await api.todos.update(todo.id, {
             completed: !todo.completed
           });
@@ -201,13 +209,15 @@ export default function Home() {
         } catch (error) {
           console.error('Error updating todo:', error);
           showNotification('Failed to update todo status', 'error');
+        } finally {
+          setLoadingItems(prev => ({ ...prev, [`todo-toggle-${todo.id}`]: false }));
         }
       };
-      
-      // Function to delete todo
+        // Function to delete todo
       const handleDeleteTodo = async () => {
         if (confirm('Are you sure you want to delete this todo?')) {
           try {
+            setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: true }));
             await api.todos.delete(todo.id);
             
             // Update local state
@@ -222,19 +232,27 @@ export default function Home() {
           } catch (error) {
             console.error('Error deleting todo:', error);
             showNotification('Failed to delete todo', 'error');
+          } finally {
+            setLoadingItems(prev => ({ ...prev, [`todo-${todo.id}`]: false }));
           }
         }
       };
       
-      return (
-        <div key={todo.id} className="bg-gray-50 p-4 rounded-lg mb-4 shadow-sm border-l-4 border-black">
+      return (        <div key={todo.id} className="bg-gray-50 p-4 rounded-lg mb-4 shadow-sm border-l-4 border-black">
           <div className="flex items-center">
-            <input
-              type="checkbox"
-              className="mr-2 h-5 w-5 cursor-pointer"
-              checked={todo.completed}
-              onChange={toggleTodoCompletion}
-            />
+            <div className="mr-2 flex items-center justify-center w-5 h-5">
+              {loadingItems[`todo-toggle-${todo.id}`] ? (
+                <Spinner size="sm" className="text-black" />
+              ) : (
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 cursor-pointer"
+                  checked={todo.completed}
+                  onChange={toggleTodoCompletion}
+                  disabled={loadingItems[`todo-toggle-${todo.id}`]}
+                />
+              )}
+            </div>
             <h3 className={`font-bold text-black ${todo.completed ? 'line-through text-gray-500' : ''}`}>
               {todo.title}
             </h3>
@@ -250,15 +268,19 @@ export default function Home() {
               {todo.due_date && (
                 <span className="ml-4">Due: {formatDueDateTime(todo.due_date)}</span>
               )}
-            </div>
-            <button 
+            </div>            <button 
               onClick={handleDeleteTodo}
-              className="text-gray-400 hover:text-black transition-colors"
+              className="text-gray-400 hover:text-black transition-colors flex items-center justify-center min-w-[20px]"
               aria-label="Delete todo"
+              disabled={loadingItems[`todo-${todo.id}`]}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              {loadingItems[`todo-${todo.id}`] ? (
+                <Spinner size="sm" className="text-gray-400" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
@@ -281,8 +303,7 @@ export default function Home() {
           <header className="flex justify-between items-center w-full">
             <div className="font-large text-black font-bold">
               {isAuthenticated && userName ? `${userName}'s journal` : "your personal journal"}
-            </div>
-            <nav className="flex gap-2">
+            </div>            <nav className="flex gap-2">
               <Link href="/" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow border-2 border-white">
                 home
               </Link>
@@ -291,6 +312,9 @@ export default function Home() {
               </Link>
               <Link href="/thoughts" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 my thoughts
+              </Link>
+              <Link href="/timeline" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
+                timeline
               </Link>
               <Link href={isAuthenticated ? "/profile" : "/login"} className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 {isAuthenticated ? 'profile' : 'login'}
@@ -310,12 +334,12 @@ export default function Home() {
                   rows={6}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                />
-                <button
+                />                <button
                   type="submit"
-                  className="bg-black text-white px-6 py-3 rounded-md mt-4 shadow-md hover:shadow-lg transition-shadow font-medium"
+                  className="bg-black text-white px-6 py-3 rounded-md mt-4 shadow-md hover:shadow-lg transition-shadow font-medium flex items-center gap-2"
                   disabled={isSubmitting}
                 >
+                  {isSubmitting && <Spinner size="sm" />}
                   {isSubmitting ? 'saving...' : 'save'}
                 </button>
               </form>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageTransition from "../components/PageTransition";
+import Spinner from "../components/Spinner";
 import { api } from "../../lib/api";
 
 export default function LoginPage() {
@@ -129,13 +130,13 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-            </div>
-            <div className="pt-4">
+            </div>            <div className="pt-4">
               <button
                 type="submit"
-                className="w-full bg-black text-white py-4 rounded-lg shadow-md hover:shadow-lg transition-shadow font-medium"
+                className="w-full bg-black text-white py-4 rounded-lg shadow-md hover:shadow-lg transition-shadow font-medium flex items-center justify-center gap-2"
                 disabled={isLoading}
               >
+                {isLoading && <Spinner size="sm" />}
                 {isLoading ? "Processing..." : (isLogin ? "Log In" : "Sign Up")}
               </button>
             </div>

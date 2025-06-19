@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PageTransition from "../components/PageTransition";
 import Notification from "../components/Notification";
+import Spinner from "../components/Spinner";
 import { api, User } from "../../lib/api";
 
 export default function ProfilePage() {
@@ -123,8 +124,7 @@ export default function ProfilePage() {
           {/* Header with navigation */}
           <header className="flex justify-between items-center w-full">            <div className="font-large text-black font-bold">
               {user ? `${user.name.split(' ')[0]}'s journal` : "your personal journal"}
-            </div>
-            <nav className="flex gap-2">
+            </div>            <nav className="flex gap-2">
               <Link href="/" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 home
               </Link>
@@ -133,6 +133,9 @@ export default function ProfilePage() {
               </Link>
               <Link href="/thoughts" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
                 my thoughts
+              </Link>
+              <Link href="/timeline" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow">
+                timeline
               </Link>
               <Link href="/profile" className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow border-2 border-white">
                 profile
@@ -225,12 +228,12 @@ export default function ProfilePage() {
                             required
                           />
                         </div>
-                        
-                        <button
+                          <button
                           type="submit"
-                          className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow"
+                          className="bg-black text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-shadow flex items-center gap-2"
                           disabled={isSubmitting}
                         >
+                          {isSubmitting && <Spinner size="sm" />}
                           {isSubmitting ? 'Updating...' : 'Update Password'}
                         </button>
                       </form>

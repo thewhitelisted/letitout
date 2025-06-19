@@ -37,14 +37,14 @@ def classify_input(text: str, user_timezone_str: str) -> Tuple[str, Dict[str, Un
     If it's a THOUGHT, respond with a JSON object with these fields:
     {{
         "type": "thought",
-        "content": "[original text]"
+        "content": "[original text in lowercase]"
     }}
 
     If it's a TODO, respond with a JSON object with these fields:
     {{
         "type": "todo",
-        "title": "[concise title]",
-        "description": "[detailed description, replace lists with a summary and do not include any capital letters or null]",
+        "title": "[concise title in lower case]",
+        "description": "[WRITTEN IN THE FIRST PERSON in lower case. detailed description, replace lists with a summary and do not include null. DO NOT ADD EXTRA INFORMATION]",
         "due_date": "[any due date mentioned in ISO format, or null if none]"
     }}
 
