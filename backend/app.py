@@ -24,12 +24,12 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)
-    jwt = JWTManager(app)    # Configure CORS with specific origin only
+    jwt = JWTManager(app)    # Configure CORS
     CORS(app, 
          origins=[os.getenv('FRONTEND_URL', 'http://localhost:3000')],
-         allow_headers=["Content-Type", "Authorization"],
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         supports_credentials=False)
+         supports_credentials=True)
     
     # Import blueprints here to avoid circular imports
     from app.api.thoughts import thoughts_bp
